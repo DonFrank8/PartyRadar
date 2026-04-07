@@ -7,55 +7,55 @@ const DEFAULT_ZOOM = 6;
 const demoEvents = [
   {
     id: "demo-1",
-    name: "Neon Bass Night",
-    location_name: "Club Orbit",
-    city: "Berlin",
-    event_date: "2026-04-18",
-    event_time: "22:00",
-    genre: "Electronic",
-    price_text: "18 EUR",
-    description: "DJs aus der lokalen Szene mit House, Techno und Basslines.",
-    lat: 52.5208,
-    lng: 13.4095
+    name: "Latin Night Marbella",
+    location_name: "Max Beach",
+    city: "Mijas Costa",
+    event_date: "2026-07-12",
+    event_time: "20:30",
+    genre: "Latin",
+    price_text: "25 EUR",
+    description: "Open-Air Latin Night mit lokalen Dance-Artists.",
+    lat: 36.4959,
+    lng: -4.7345
   },
   {
     id: "demo-2",
-    name: "Rooftop Indie Session",
-    location_name: "Skyline Terrace",
-    city: "Hamburg",
-    event_date: "2026-04-20",
-    event_time: "19:30",
-    genre: "Indie",
-    price_text: "25 EUR",
-    description: "Live-Bands unter freiem Himmel mit Blick auf den Hafen.",
-    lat: 53.5503,
-    lng: 9.992
+    name: "Salsa Party",
+    location_name: "Ocean Club",
+    city: "Marbella",
+    event_date: "2026-07-13",
+    event_time: "19:00",
+    genre: "Salsa",
+    price_text: "30 EUR",
+    description: "Salsa Floor mit DJ Set und Show-Acts.",
+    lat: 36.4879,
+    lng: -4.953
   },
   {
     id: "demo-3",
-    name: "Afrobeat & Friends",
-    location_name: "Werkhalle 9",
-    city: "Cologne",
-    event_date: "2026-04-22",
-    event_time: "21:00",
-    genre: "Afrobeat",
-    price_text: "20 EUR",
-    description: "Dancefloor-Event mit Live-Percussion und internationalen Acts.",
-    lat: 50.9377,
-    lng: 6.9603
+    name: "Rock Night",
+    location_name: "Fuengirola Port Stage",
+    city: "Fuengirola",
+    event_date: "2026-07-14",
+    event_time: "21:30",
+    genre: "Rock",
+    price_text: "18 EUR",
+    description: "Live Band Show mit regionalen Rock-Bands.",
+    lat: 36.5336,
+    lng: -4.6207
   },
   {
     id: "demo-4",
-    name: "Jazz After Work",
-    location_name: "Blue Note Lounge",
-    city: "Munich",
-    event_date: "2026-04-25",
-    event_time: "18:30",
-    genre: "Jazz",
-    price_text: "Eintritt frei",
-    description: "Entspannter Jazz-Abend mit regionalen Ensembles.",
-    lat: 48.1373,
-    lng: 11.5756
+    name: "Bachata Sunset Session",
+    location_name: "Plaza del Mar",
+    city: "Estepona",
+    event_date: "2026-07-15",
+    event_time: "20:00",
+    genre: "Bachata",
+    price_text: "22 EUR",
+    description: "Bachata Social mit Workshop und DJ Set.",
+    lat: 36.4292,
+    lng: -5.1474
   }
 ];
 
@@ -64,6 +64,8 @@ const state = {
   filteredEvents: [],
   selectedEventId: null,
   sourceLabel: "Unbekannt",
+  availableGenres: [],
+  activeGenres: new Set(),
   debug: {
     enabled: true,
     tableName: "events",
@@ -74,7 +76,41 @@ const state = {
   }
 };
 
-const GENRE_OPTIONS = ["Latin", "Salsa", "Rock"];
+const GENRE_ORDER = [
+  "Latin",
+  "Salsa",
+  "Bachata",
+  "Reggaeton",
+  "Flamenco",
+  "Rock",
+  "Pop",
+  "Electro",
+  "House",
+  "Techno",
+  "R&B",
+  "Hip-Hop",
+  "Jazz",
+  "Live Band",
+  "DJ Set"
+];
+
+const GENRE_ICON_MAP = {
+  Latin: "💃",
+  Salsa: "🕺",
+  Bachata: "💞",
+  Reggaeton: "🔥",
+  Flamenco: "🌹",
+  Rock: "🎸",
+  Pop: "🎤",
+  Electro: "⚡",
+  House: "🏠",
+  Techno: "🔊",
+  "R&B": "🎶",
+  "Hip-Hop": "🧢",
+  Jazz: "🎷",
+  "Live Band": "🥁",
+  "DJ Set": "🎛️"
+};
 
 const dom = {
   status: document.getElementById("status"),
@@ -83,8 +119,7 @@ const dom = {
   resultCount: document.getElementById("resultCount"),
   searchInput: document.getElementById("searchInput"),
   cityFilter: document.getElementById("cityFilter"),
-  genreFilter: document.getElementById("genreFilter"),
-  dateFilter: document.getElementById("dateFilter"),
+  genreFilterGroup: document.getElementById("genreFilterGroup"),
   resetFilters: document.getElementById("resetFilters"),
   debugPanel: document.getElementById("debugPanel"),
   debugLoadedCount: document.getElementById("debugLoadedCount"),
@@ -107,46 +142,63 @@ function updateDebugPanel() {
   dom.debugPanel.classList.remove("debug-panel--error");
   dom.debugPanel.classList.add("debug-panel--active");
 
-  if (dom.debugTableName) {
-    dom.debugTableName.textContent = state.debug.tableName;
-  }
-  if (dom.debugLoadedCount) {
-    dom.debugLoadedCount.textContent = String(state.debug.supabaseLoadedCount);
-  }
+  if (dom.debugTableName) dom.debugTableName.textContent = state.debug.tableName;
+  if (dom.debugLoadedCount) dom.debugLoadedCount.textContent = String(state.debug.supabaseLoadedCount);
   if (dom.debugErrorState) {
-    dom.debugErrorState.textContent = state.debug.hasError
-      ? `Ja - ${state.debug.errorMessage}`
-      : "Nein";
+    dom.debugErrorState.textContent = state.debug.hasError ? `Ja - ${state.debug.errorMessage}` : "Nein";
   }
-  if (dom.debugFallbackReason) {
-    dom.debugFallbackReason.textContent = state.debug.fallbackReason;
-  }
-
-  if (state.debug.hasError) {
-    dom.debugPanel.classList.add("debug-panel--error");
-  }
+  if (dom.debugFallbackReason) dom.debugFallbackReason.textContent = state.debug.fallbackReason;
+  if (state.debug.hasError) dom.debugPanel.classList.add("debug-panel--error");
 }
 
 function normalizeEvent(event, index) {
   const lat = Number(event.lat ?? event.latitude ?? null);
   const lng = Number(event.lng ?? event.longitude ?? null);
-  const dateValue = event.event_date || event.date || "";
-  const cityValue = event.city || event.location_city || "";
-  const genreValue = event.genre || event.music_genre || "";
-
   return {
     id: String(event.id ?? `event-${index}`),
     name: event.name || event.title || "Unbenanntes Event",
     location_name: event.location_name || event.location || "Unbekannte Location",
-    city: cityValue,
-    event_date: dateValue,
+    city: event.city || event.location_city || "",
+    event_date: event.event_date || event.date || "",
     event_time: event.event_time || event.time || "",
-    genre: genreValue,
+    genre: event.genre || event.music_genre || "",
     price_text: event.price_text || event.price || "Eintritt frei",
     description: event.description || "Keine Beschreibung vorhanden.",
     lat: Number.isFinite(lat) ? lat : null,
     lng: Number.isFinite(lng) ? lng : null
   };
+}
+
+function splitGenres(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return String(value)
+    .split(/[,/|;]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function sortGenres(genres) {
+  return [...genres].sort((a, b) => {
+    const ai = GENRE_ORDER.indexOf(a);
+    const bi = GENRE_ORDER.indexOf(b);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b, "de");
+  });
+}
+
+function collectUniqueGenres(events) {
+  const set = new Set();
+  events.forEach((event) => {
+    splitGenres(event.genre).forEach((genre) => set.add(genre));
+  });
+  return sortGenres(set);
+}
+
+function iconForGenre(genre) {
+  return GENRE_ICON_MAP[genre] || "🎵";
 }
 
 function formatDate(dateString) {
@@ -164,22 +216,35 @@ function formatDate(dateString) {
 function formatPrice(priceText) {
   if (!priceText) return "Eintritt frei";
   const normalized = String(priceText).trim().toLowerCase();
-  if (normalized === "free" || normalized === "0" || normalized === "0 eur") {
-    return "Eintritt frei";
-  }
+  if (normalized === "free" || normalized === "0" || normalized === "0 eur") return "Eintritt frei";
   return String(priceText);
 }
 
 function eventSearchText(event) {
-  return [
-    event.name,
-    event.location_name,
-    event.city,
-    event.genre,
-    event.description
-  ]
-    .join(" ")
-    .toLowerCase();
+  return [event.name, event.location_name, event.city, event.genre, event.description].join(" ").toLowerCase();
+}
+
+function renderGenreFilter() {
+  if (!dom.genreFilterGroup) return;
+  dom.genreFilterGroup.innerHTML = "";
+
+  const allButton = document.createElement("button");
+  allButton.type = "button";
+  allButton.className = "genre-chip genre-chip--all";
+  if (state.activeGenres.size === 0) allButton.classList.add("is-active");
+  allButton.dataset.genre = "__all__";
+  allButton.textContent = "Alle";
+  dom.genreFilterGroup.append(allButton);
+
+  state.availableGenres.forEach((genre) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "genre-chip";
+    if (state.activeGenres.has(genre)) button.classList.add("is-active");
+    button.dataset.genre = genre;
+    button.innerHTML = `<span class="genre-chip__icon">${iconForGenre(genre)}</span><span>${genre}</span>`;
+    dom.genreFilterGroup.append(button);
+  });
 }
 
 function updateFilterOptions() {
@@ -195,21 +260,27 @@ function updateFilterOptions() {
     dom.cityFilter.append(option);
   });
 
-  dom.genreFilter.innerHTML = '<option value="">Alle Genres</option>';
-  GENRE_OPTIONS.forEach((genre) => {
-    const option = document.createElement("option");
-    option.value = genre;
-    option.textContent = genre;
-    dom.genreFilter.append(option);
+  state.availableGenres = collectUniqueGenres(state.allEvents);
+
+  state.activeGenres.forEach((genre) => {
+    if (!state.availableGenres.includes(genre)) state.activeGenres.delete(genre);
   });
+
+  renderGenreFilter();
 }
 
 function getActiveFilters() {
   return {
     search: dom.searchInput.value.trim().toLowerCase(),
     city: dom.cityFilter.value,
-    genre: dom.genreFilter.value
+    genres: new Set(state.activeGenres)
   };
+}
+
+function eventMatchesGenres(event, activeGenres) {
+  if (!activeGenres.size) return true;
+  const eventGenres = splitGenres(event.genre);
+  return eventGenres.some((genre) => activeGenres.has(genre));
 }
 
 function statusToneForSource() {
@@ -221,7 +292,7 @@ function applyFilters() {
 
   state.filteredEvents = state.allEvents.filter((event) => {
     if (filters.city && event.city !== filters.city) return false;
-    if (filters.genre && event.genre !== filters.genre) return false;
+    if (!eventMatchesGenres(event, filters.genres)) return false;
     if (filters.search && !eventSearchText(event).includes(filters.search)) return false;
     return true;
   });
@@ -260,11 +331,7 @@ function createEventCard(event) {
   `;
 
   card.append(header, meta);
-
-  card.addEventListener("click", () => {
-    selectEvent(event.id, { flyTo: true, openPopup: true });
-  });
-
+  card.addEventListener("click", () => selectEvent(event.id, { flyTo: true, openPopup: true }));
   return card;
 }
 
@@ -273,34 +340,27 @@ function renderEventList() {
   dom.resultCount.textContent = `${state.filteredEvents.length} Treffer`;
 
   if (!state.filteredEvents.length) {
-    dom.eventList.innerHTML = '<p class="event-list__empty">Keine Events passend zu den Filtern.</p>';
+    dom.eventList.innerHTML = '<p class="event-list__empty">Keine Events gefunden.</p>';
     dom.eventDetails.className = "event-details event-details--empty";
-    dom.eventDetails.textContent = "Keine Eventdetails verfügbar.";
+    dom.eventDetails.textContent = "Keine Events gefunden.";
     return;
   }
 
   state.filteredEvents.forEach((event) => {
     const card = createEventCard(event);
-    if (event.id === state.selectedEventId) {
-      card.classList.add("event-card--active");
-    }
+    if (event.id === state.selectedEventId) card.classList.add("event-card--active");
     dom.eventList.append(card);
   });
 }
 
 function initMap() {
   map = L.map("map", { zoomControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
-
   markersLayer = L.layerGroup().addTo(map);
-
-  window.setTimeout(() => {
-    map.invalidateSize();
-  }, 250);
+  window.setTimeout(() => map.invalidateSize(), 250);
 }
 
 function markerPopupHtml(event) {
@@ -321,23 +381,16 @@ function renderMapMarkers() {
 
   state.filteredEvents.forEach((event) => {
     if (event.lat === null || event.lng === null) return;
-
     const marker = L.marker([event.lat, event.lng], { title: event.name })
       .bindPopup(markerPopupHtml(event))
-      .on("click", () => {
-        selectEvent(event.id, { flyTo: false, openPopup: false });
-      });
-
+      .on("click", () => selectEvent(event.id, { flyTo: false, openPopup: false }));
     markersLayer.addLayer(marker);
     markersByEventId.set(event.id, marker);
     bounds.push([event.lat, event.lng]);
   });
 
-  if (bounds.length) {
-    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
-  } else {
-    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-  }
+  if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
+  else map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 }
 
 function renderEventDetails(event) {
@@ -369,35 +422,42 @@ function selectEvent(eventId, options = { flyTo: false, openPopup: false }) {
   });
 
   renderEventDetails(event || null);
-
   if (!event) return;
 
   const marker = markersByEventId.get(event.id);
   if (marker && event.lat !== null && event.lng !== null) {
-    if (options.flyTo) {
-      map.flyTo([event.lat, event.lng], 13, { duration: 0.6 });
-    }
-    if (options.openPopup) {
-      marker.openPopup();
-    }
+    if (options.flyTo) map.flyTo([event.lat, event.lng], 13, { duration: 0.6 });
+    if (options.openPopup) marker.openPopup();
   }
 }
 
 function resetFilters() {
   dom.searchInput.value = "";
   dom.cityFilter.value = "";
-  dom.genreFilter.value = "";
+  state.activeGenres.clear();
+  renderGenreFilter();
   state.selectedEventId = null;
   applyFilters();
   renderEventDetails(null);
 }
 
 function bindEvents() {
-  const inputs = [dom.searchInput, dom.cityFilter, dom.genreFilter];
-  inputs.forEach((input) => input.addEventListener("input", applyFilters));
+  dom.searchInput.addEventListener("input", applyFilters);
   dom.cityFilter.addEventListener("change", applyFilters);
-  dom.genreFilter.addEventListener("change", applyFilters);
   dom.resetFilters.addEventListener("click", resetFilters);
+
+  dom.genreFilterGroup.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-genre]");
+    if (!button) return;
+    const { genre } = button.dataset;
+
+    if (genre === "__all__") state.activeGenres.clear();
+    else if (state.activeGenres.has(genre)) state.activeGenres.delete(genre);
+    else state.activeGenres.add(genre);
+
+    renderGenreFilter();
+    applyFilters();
+  });
 }
 
 async function fetchEventsFromSupabase() {
@@ -410,19 +470,13 @@ async function fetchEventsFromSupabase() {
 
   const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const tableName = state.debug.tableName || "events";
-  const { data, error } = await client
-    .from(tableName)
-    .select("*")
-    .order("event_date", { ascending: true });
+  const { data, error } = await client.from(tableName).select("*").order("event_date", { ascending: true });
 
   console.log("[PartyRadar Debug] Supabase table:", tableName);
   console.log("[PartyRadar Debug] Supabase data:", data);
   console.log("[PartyRadar Debug] Supabase error:", error);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return (data || []).map(normalizeEvent);
 }
 

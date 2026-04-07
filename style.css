@@ -184,7 +184,7 @@ body {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-.debug-info {
+.debug-box {
   margin-top: 0.85rem;
   border: 1px dashed var(--surface-border);
   border-radius: 10px;
@@ -192,14 +192,14 @@ body {
   background: rgba(255, 255, 255, 0.015);
 }
 
-.debug-info p {
+.debug-box p {
   margin: 0.28rem 0;
   font-size: 0.82rem;
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 
-.debug-info strong {
+.debug-box strong {
   color: #dbe6ff;
 }
 
@@ -222,10 +222,44 @@ body {
   font-size: 0.83rem;
 }
 
-.list-filters {
+.filters--list {
   display: grid;
   gap: 0.65rem;
   margin-bottom: 0.8rem;
+}
+
+.genre-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.genre-chip {
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1;
+  min-height: 34px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.genre-chip__icon {
+  margin-right: 0.35rem;
+}
+
+.genre-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.genre-chip.is-active {
+  border-color: var(--accent-strong);
+  color: #fff;
+  background: rgba(255, 46, 116, 0.2);
 }
 
 .event-list {
