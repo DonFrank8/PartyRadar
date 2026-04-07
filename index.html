@@ -5,100 +5,270 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PartyRadar</title>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
 <style>
-body {margin:0;font-family:Arial;background:#0b0b0f;color:white;}
-header{text-align:center;padding:60px 20px;}
-h1{font-size:48px;}
-.layout{display:grid;grid-template-columns:420px 1fr;gap:20px;padding:20px;}
-.sidebar{background:#1b1f2d;padding:20px;border-radius:12px;}
-.map{background:#111723;border-radius:12px;padding:20px;}
-.event{background:#202638;margin-bottom:10px;padding:12px;border-radius:10px;cursor:pointer;}
-input,select{width:100%;padding:10px;margin-bottom:10px;background:#202638;color:white;border:1px solid #444;}
-button{padding:8px 12px;background:#ff0055;color:white;border:none;cursor:pointer;}
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0b0b0f;
+  color: white;
+}
+
+header {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+h1 {
+  font-size: 48px;
+}
+
+.subtitle {
+  color: #ccc;
+}
+
+.container {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+}
+
+.sidebar {
+  padding: 20px;
+  background: #1b1f2d;
+}
+
+.event {
+  background: #222;
+  padding: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.event:hover {
+  background: #ff0055;
+}
+
+#map {
+  height: 600px;
+}
 </style>
 </head>
 
 <body>
 
 <header>
-<h1>PartyRadar</h1>
-<p>Finde Events wie auf Immobilienplattformen</p>
+  <h1>PartyRadar</h1>
+  <p class="subtitle">Live Events, Bands & Locations auf einer Karte</p>
 </header>
 
-<div class="layout">
+<div class="container">
 
-<div class="sidebar">
+  <div class="sidebar" id="events"></div>
 
-<input id="search" placeholder="Suche..." oninput="update()">
-
-<select id="cityFilter" onchange="update()">
-<option value="All">Alle Städte</option>
-<option>Marbella</option>
-<option>Málaga</option>
-<option>Estepona</option>
-</select>
-
-<select id="dateFilter" onchange="update()">
-<option value="All">Alle Daten</option>
-<option>12.07.2026</option>
-<option>13.07.2026</option>
-<option>14.07.2026</option>
-</select>
-
-<div id="events"></div>
+  <div id="map"></div>
 
 </div>
 
-<div class="map">
-<h3>Karte (Demo)</h3>
-<div id="mapInfo">Event auswählen</div>
-</div>
-
-</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 
-const events = [
-{name:"Latin Night",city:"Marbella",date:"12.07.2026",genre:"Latin"},
-{name:"House Party",city:"Málaga",date:"13.07.2026",genre:"House"},
-{name:"Flamenco Show",city:"Estepona",date:"14.07.2026",genre:"Flamenco"}
-];
 
-function update(){
-const search=document.getElementById("search").value.toLowerCase();
-const city=document.getElementById("cityFilter").value;
-const date=document.getElementById("dateFilter").value;
+const SUPABASE_URL = "<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PartyRadar</title>
 
-let filtered=events.filter(e=>{
-return (
-(e.name.toLowerCase().includes(search) || e.genre.toLowerCase().includes(search)) &&
-(city==="All" || e.city===city) &&
-(date==="All" || e.date===date)
-);
-});
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-render(filtered);
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0b0b0f;
+  color: white;
 }
 
-function render(list){
-const container=document.getElementById("events");
-container.innerHTML="";
-
-list.forEach(e=>{
-const div=document.createElement("div");
-div.className="event";
-div.innerHTML=`<b>${e.name}</b><br>${e.city} - ${e.date}<br>${e.genre}`;
-div.onclick=()=>show(e);
-container.appendChild(div);
-});
+header {
+  text-align: center;
+  padding: 60px 20px;
 }
 
-function show(e){
-document.getElementById("mapInfo").innerHTML=
-`<h2>${e.name}</h2><p>${e.city}</p><p>${e.date}</p><p>${e.genre}</p>`;
+h1 {
+  font-size: 48px;
 }
 
-render(events);
+.subtitle {
+  color: #ccc;
+}
+
+.container {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+}
+
+.sidebar {
+  padding: 20px;
+  background: #1b1f2d;
+}
+
+.event {
+  background: #222;
+  padding: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.event:hover {
+  background: #ff0055;
+}
+
+#map {
+  height: 600px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>PartyRadar</h1>
+  <p class="subtitle">Live Events, Bands & Locations auf einer Karte</p>
+</header>
+
+<div class="container">
+
+  <div class="sidebar" id="events"></div>
+
+  <div id="map"></div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+// 👉 HIER DEINE DATEN EINSETZEN
+const SUPABASE_URL = "DEINE_URL";
+const SUPABASE_KEY = "DEIN_KEY";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Karte starten
+const map = L.map('map').setView([36.5, -4.7], 10);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+}).addTo(map);
+
+// Events laden
+async function loadEvents() {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*");
+
+  if (error) {
+    console.log(error);
+    return;
+  }
+
+  const container = document.getElementById("events");
+  container.innerHTML = "";
+
+  data.forEach(event => {
+
+    // Sidebar
+    const div = document.createElement("div");
+    div.className = "event";
+    div.innerHTML = `
+      <b>${event.name}</b><br>
+      ${event.city}<br>
+      ${event.genre}
+    `;
+
+    div.onclick = () => {
+      map.setView([event.lat, event.lng], 13);
+    };
+
+    container.appendChild(div);
+
+    // Marker
+    L.marker([event.lat, event.lng])
+      .addTo(map)
+      .bindPopup(`<b>${event.name}</b><br>${event.location_name}`);
+
+  });
+}
+
+loadEvents();
+
+</script>
+
+</body>
+</html>";
+const SUPABASE_KEY = "sb_secret_RtZozNo9hwoOHL6oG3zLYQ_rgNULApc";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Karte starten
+const map = L.map('map').setView([36.5, -4.7], 10);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+}).addTo(map);
+
+// Events laden
+async function loadEvents() {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*");
+
+  if (error) {
+    console.log(error);
+    return;
+  }
+
+  const container = document.getElementById("events");
+  container.innerHTML = "";
+
+  data.forEach(event => {
+
+    // Sidebar
+    const div = document.createElement("div");
+    div.className = "event";
+    div.innerHTML = `
+      <b>${event.name}</b><br>
+      ${event.city}<br>
+      ${event.genre}
+    `;
+
+    div.onclick = () => {
+      map.setView([event.lat, event.lng], 13);
+    };
+
+    container.appendChild(div);
+
+    // Marker
+    L.marker([event.lat, event.lng])
+      .addTo(map)
+      .bindPopup(`<b>${event.name}</b><br>${event.location_name}`);
+
+  });
+}
+
+loadEvents();
+
+</script>
+
+</body>
+</html>
 
 </script>
 
