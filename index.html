@@ -1,1 +1,144 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PartyRadar</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #0b0b0f, #161622);
+      color: white;
+    }
+
+    header {
+      padding: 80px 20px 50px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 56px;
+      margin: 0 0 20px;
+    }
+
+    header p {
+      font-size: 20px;
+      color: #cfcfd6;
+      max-width: 700px;
+      margin: 0 auto 30px;
+      line-height: 1.5;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: bold;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: #ff0055;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #222637;
+      color: white;
+      border: 1px solid #3a3f57;
+    }
+
+    section {
+      padding: 40px 20px 70px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    section h2 {
+      text-align: center;
+      font-size: 34px;
+      margin-bottom: 30px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: #1b1f2d;
+      border: 1px solid #2f3550;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .card h3 {
+      margin-top: 0;
+      font-size: 22px;
+    }
+
+    .card p {
+      color: #c8cada;
+      line-height: 1.5;
+    }
+
+    footer {
+      text-align: center;
+      padding: 30px 20px 50px;
+      color: #8f93a8;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>PartyRadar</h1>
+    <p>
+      Entdecke lokale Bands, Live-Events, DJs, Beachbars und besondere Musik-Locations.
+      Alles an einem Ort.
+    </p>
+    <div class="buttons">
+      <a href="#" class="btn btn-primary">Events entdecken</a>
+      <a href="#" class="btn btn-secondary">Bands suchen</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>Was du auf PartyRadar findest</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Live-Events</h3>
+        <p>Finde Konzerte, lokale Events, Beach-Partys und Musiknächte in deiner Umgebung.</p>
+      </div>
+      <div class="card">
+        <h3>Bands & Künstler</h3>
+        <p>Suche nach Latino-Bands, Flamenco, Rock, DJs und vielen anderen Musikrichtungen.</p>
+      </div>
+      <div class="card">
+        <h3>Locations</h3>
+        <p>Entdecke Bars, Clubs, Beachbars und Veranstaltungsorte mit Live-Musik und gutem Vibe.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 PartyRadar — Discover local music & events
+  </footer>
+
+</body>
+</html>
