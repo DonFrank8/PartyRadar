@@ -176,6 +176,10 @@ function getActiveFilters() {
   };
 }
 
+function statusToneForSource() {
+  return state.sourceLabel.startsWith("Demo-Fallback") ? "warning" : "ok";
+}
+
 function applyFilters() {
   const filters = getActiveFilters();
 
@@ -196,7 +200,7 @@ function applyFilters() {
   renderMapMarkers();
   setStatus(
     `${state.filteredEvents.length} von ${state.allEvents.length} Events (${state.sourceLabel}).`,
-    "ok"
+    statusToneForSource()
   );
 }
 
