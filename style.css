@@ -79,6 +79,35 @@ body {
   background: rgba(17, 27, 49, 0.45);
 }
 
+.lang-switch {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.18rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(17, 27, 49, 0.45);
+}
+
+.lang-btn {
+  border: 0;
+  background: transparent;
+  color: #dce6ff;
+  font-size: 0.72rem;
+  line-height: 1;
+  border-radius: 999px;
+  padding: 0.34rem 0.52rem;
+  cursor: pointer;
+}
+
+.lang-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lang-btn.is-active {
+  background: rgba(255, 94, 138, 0.35);
+  color: #fff;
+}
+
 .version-chip {
   border-style: dashed !important;
   border-color: rgba(255, 176, 32, 0.58) !important;

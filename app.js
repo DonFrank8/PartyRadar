@@ -398,6 +398,7 @@ const state = {
 
 const dom = {
   htmlRoot: document.documentElement,
+  languageSwitchButtons: document.querySelectorAll("[data-lang-switch]"),
   status: document.getElementById("status"),
   eventList: document.getElementById("eventList"),
   eventDetails: document.getElementById("eventDetails"),
@@ -459,9 +460,19 @@ function applyStaticTranslations() {
   document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
     element.placeholder = t(element.dataset.i18nPlaceholder);
   });
+  if (dom.languageSelect) {
+    dom.languageSelect.value = state.lang;
+  }
   const buildBadge = document.getElementById("buildBadge");
   if (buildBadge) {
     buildBadge.textContent = `Build ${APP_BUILD_VERSION}`;
+  }
+  if (dom.languageSwitchButtons?.length) {
+    dom.languageSwitchButtons.forEach((button) => {
+      const isActive = button.dataset.langSwitch === state.lang;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
   }
 }
 
@@ -1049,6 +1060,27 @@ function bindEvents() {
   dom.searchInput.addEventListener("input", applyFilters);
   dom.cityFilter.addEventListener("change", applyFilters);
   dom.dateFilter.addEventListener("change", applyFilters);
+  if (dom.languageSwitchButtons?.length) {
+    dom.languageSwitchButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const nextLang = resolveLanguage(button.dataset.langSwitch);
+        if (nextLang === state.lang) return;
+        state.lang = nextLang;
+        applyStaticTranslations();
+        updateFilterOptions();
+        applyFiltersFromQuery();
+        applyFilters();
+        if (state.selectedEventId) {
+          const selected = state.filteredEvents.find((event) => event.id === state.selectedEventId) || null;
+          renderEventDetails(selected);
+        } else {
+          renderEventDetails(null);
+        }
+        updateDebugPanel();
+        updateUrlFromFilters();
+      });
+    });
+  }
   dom.resetFilters.addEventListener("click", resetFilters);
   dom.clearGenresButton.addEventListener("click", clearGenreSelection);
   if (dom.eventFormToggle) {
