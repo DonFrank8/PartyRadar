@@ -56,6 +56,18 @@
         <p id="status" class="status status--loading">Initialisiere Anwendung...</p>
       </section>
 
+      <section id="moderationPanel" class="panel panel--moderation" hidden>
+        <div class="panel__heading">
+          <h3 data-i18n="admin_title">Moderation</h3>
+          <span id="moderationCount">0 pending</span>
+        </div>
+        <p class="panel__intro" data-i18n="admin_subtitle">
+          Prüfe eingereichte Events und entscheide über Veröffentlichung.
+        </p>
+        <p id="moderationFeedback" class="add-event-message" hidden></p>
+        <div id="moderationList" class="moderation-list"></div>
+      </section>
+
       <section class="panel panel--list">
         <form id="filtersForm" class="list-filters" autocomplete="off">
           <label class="field">
