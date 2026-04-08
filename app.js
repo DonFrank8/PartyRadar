@@ -955,6 +955,42 @@ function buildGeocodingQuery(payload) {
     .join(", ");
 }
 
+function normalizeCountryForGeocoding(countryValue) {
+  const raw = String(countryValue || "").trim();
+  if (!raw) return "";
+
+  const normalized = raw.toLowerCase();
+  if (["deutschland", "germany", "alemania"].includes(normalized)) return "Germany";
+  if (["spanien", "spain", "espana", "españa"].includes(normalized)) return "Spain";
+  if (["frankreich", "france", "francia"].includes(normalized)) return "France";
+  if (["italien", "italy", "italia"].includes(normalized)) return "Italy";
+  if (["österreich", "oesterreich", "austria", "austria"].includes(normalized)) return "Austria";
+  if (["schweiz", "switzerland", "suiza"].includes(normalized)) return "Switzerland";
+  if (["niederlande", "netherlands", "paises bajos", "países bajos", "holland"].includes(normalized)) {
+    return "Netherlands";
+  }
+  return raw;
+}
+
+function buildGeocodingQueries(payload) {
+  const address = String(payload.address || "").trim();
+  const postalCode = String(payload.postal_code || "").trim();
+  const city = String(payload.city || "").trim();
+  const country = normalizeCountryForGeocoding(payload.country);
+
+  const queries = [
+    [address, postalCode, city, country],
+    [address, city, country],
+    [postalCode, city, country],
+    [city, postalCode, country],
+    [city, country]
+  ]
+    .map((parts) => parts.filter(Boolean).join(", "))
+    .filter(Boolean);
+
+  return [...new Set(queries)];
+}
+
 const GEOCODING_PROVIDERS = {
   nominatim: geocodeAddressWithNominatim,
   mapbox: geocodeAddressWithMapbox
@@ -992,8 +1028,8 @@ async function geocodeWithRetry(provider, query) {
 
 async function resolveCoordinatesForPayload(payload) {
   if (!ENABLE_AUTO_GEOCODING) return payload;
-  const query = buildGeocodingQuery(payload);
-  if (!query) {
+  const queries = buildGeocodingQueries(payload);
+  if (!queries.length) {
     throw new Error("Missing geocoding address fields");
   }
 
@@ -1003,15 +1039,17 @@ async function resolveCoordinatesForPayload(payload) {
   }
 
   try {
-    const coordinates = await geocodeWithRetry(provider, query);
-    if (!coordinates) {
-      throw new Error("No geocoding result");
+    for (const query of queries) {
+      const coordinates = await geocodeWithRetry(provider, query);
+      if (!coordinates) continue;
+      return {
+        ...payload,
+        geocoding_query: query,
+        lat: coordinates.lat,
+        lng: coordinates.lng
+      };
     }
-    return {
-      ...payload,
-      lat: coordinates.lat,
-      lng: coordinates.lng
-    };
+    throw new Error("No geocoding result");
   } catch (error) {
     console.warn("[PartyRadar Debug] Geocoding failed:", error);
     throw new Error(error?.message || "Geocoding failed");
