@@ -29,6 +29,26 @@ where email in ('admin@yourdomain.com');
 
 After updating metadata, users should re-login so the JWT contains the role claim.
 
+## Geocoding provider config
+
+Event submission can geocode addresses automatically before storing events.
+
+Default setup:
+- provider: `nominatim`
+- retries: `2`
+- minimum interval between requests: `850ms`
+
+Optional runtime config (set in `index.html` before loading `app.js`):
+
+```html
+<script>
+  window.PARTYRADAR_GEOCODING_PROVIDER = "mapbox"; // "nominatim" | "mapbox"
+  window.PARTYRADAR_MAPBOX_TOKEN = "YOUR_MAPBOX_PUBLIC_TOKEN";
+</script>
+```
+
+If `mapbox` is selected but no token is configured, geocoding falls back gracefully (events are still stored as pending).
+
 ### Apply RLS in Supabase
 
 1. Open Supabase project SQL editor

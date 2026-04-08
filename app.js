@@ -1,11 +1,17 @@
 const SUPABASE_URL = "https://dwyhpirtbjfmohcnhdak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__H_WNdy1NIfoQbQfyNILKQ_Qb8wQfgn";
-const APP_BUILD_VERSION = "2026.04.08-8";
+const APP_BUILD_VERSION = "2026.04.08-11";
 const ADMIN_REQUIRED_ROLE = "admin";
 const USE_MODERATION_EDGE_FUNCTION = false;
 const MODERATION_EDGE_FUNCTION_NAME = "moderate-event";
 const ENABLE_AUTO_GEOCODING = true;
-const GEOCODING_PROVIDER = "nominatim";
+const GEOCODING_PROVIDER = (window.PARTYRADAR_GEOCODING_PROVIDER || "nominatim")
+  .toString()
+  .trim()
+  .toLowerCase();
+const GEOCODING_MIN_INTERVAL_MS = 850;
+const GEOCODING_MAX_RETRIES = 2;
+const MAPBOX_ACCESS_TOKEN = (window.PARTYRADAR_MAPBOX_TOKEN || "").toString().trim();
 
 window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
 
@@ -177,6 +183,10 @@ const I18N = {
     admin_update_success_approved: "Event wurde freigegeben.",
     admin_update_success_rejected: "Event wurde abgelehnt.",
     admin_update_error: "Moderation konnte nicht gespeichert werden.",
+    admin_geo_label: "Koordinaten",
+    admin_geo_ok: "vorhanden",
+    admin_geo_missing: "fehlt",
+    admin_geo_unknown: "unbekannt",
     admin_mode_active: "Admin-Modus aktiv: pending Events können moderiert werden.",
     admin_login_title: "Admin Login",
     admin_login_hint: "Mit deiner Admin-E-Mail anmelden, um Events zu moderieren.",
@@ -298,6 +308,10 @@ const I18N = {
     admin_update_success_approved: "Event approved.",
     admin_update_success_rejected: "Event rejected.",
     admin_update_error: "Moderation update failed.",
+    admin_geo_label: "Coordinates",
+    admin_geo_ok: "present",
+    admin_geo_missing: "missing",
+    admin_geo_unknown: "unknown",
     admin_mode_active: "Admin mode active: pending events can be moderated.",
     admin_login_title: "Admin login",
     admin_login_hint: "Sign in with your admin email to moderate events.",
@@ -419,6 +433,10 @@ const I18N = {
     admin_update_success_approved: "Evento aprobado.",
     admin_update_success_rejected: "Evento rechazado.",
     admin_update_error: "No se pudo guardar la moderación.",
+    admin_geo_label: "Coordenadas",
+    admin_geo_ok: "disponibles",
+    admin_geo_missing: "faltan",
+    admin_geo_unknown: "desconocido",
     admin_mode_active: "Modo admin activo: se pueden moderar eventos pendientes.",
     admin_login_title: "Acceso admin",
     admin_login_hint: "Inicia sesión con tu correo admin para moderar eventos.",
@@ -855,6 +873,39 @@ async function geocodeAddressWithNominatim(query) {
   return { lat, lng };
 }
 
+async function geocodeAddressWithMapbox(query) {
+  if (!MAPBOX_ACCESS_TOKEN) {
+    return null;
+  }
+
+  const endpoint = new URL(
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`
+  );
+  endpoint.searchParams.set("access_token", MAPBOX_ACCESS_TOKEN);
+  endpoint.searchParams.set("limit", "1");
+  endpoint.searchParams.set("types", "address,place,poi");
+  endpoint.searchParams.set("language", "de,en,es");
+
+  const response = await fetch(endpoint.toString(), {
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Mapbox geocoding HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const first = Array.isArray(data?.features) ? data.features[0] : null;
+  if (!first || !Array.isArray(first.center) || first.center.length < 2) return null;
+
+  const lng = Number(first.center[0]);
+  const lat = Number(first.center[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
 function buildGeocodingQuery(payload) {
   return [payload.location_name, payload.address, payload.city, payload.country]
     .filter(Boolean)
@@ -862,8 +913,39 @@ function buildGeocodingQuery(payload) {
 }
 
 const GEOCODING_PROVIDERS = {
-  nominatim: geocodeAddressWithNominatim
+  nominatim: geocodeAddressWithNominatim,
+  mapbox: geocodeAddressWithMapbox
 };
+
+let lastGeocodingRequestAt = 0;
+
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function geocodingRateLimitWait() {
+  if (!GEOCODING_MIN_INTERVAL_MS) return;
+  const elapsed = Date.now() - lastGeocodingRequestAt;
+  if (elapsed >= GEOCODING_MIN_INTERVAL_MS) return;
+  await sleep(GEOCODING_MIN_INTERVAL_MS - elapsed);
+}
+
+async function geocodeWithRetry(provider, query) {
+  const maxAttempts = Math.max(1, GEOCODING_MAX_RETRIES + 1);
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await geocodingRateLimitWait();
+      const result = await provider(query);
+      lastGeocodingRequestAt = Date.now();
+      return result;
+    } catch (error) {
+      lastGeocodingRequestAt = Date.now();
+      if (attempt >= maxAttempts) throw error;
+      await sleep(250 * attempt);
+    }
+  }
+  return null;
+}
 
 async function resolveCoordinatesForPayload(payload) {
   if (!ENABLE_AUTO_GEOCODING) return payload;
@@ -874,7 +956,7 @@ async function resolveCoordinatesForPayload(payload) {
   if (!provider) return payload;
 
   try {
-    const coordinates = await provider(query);
+    const coordinates = await geocodeWithRetry(provider, query);
     if (!coordinates) return payload;
     return {
       ...payload,
@@ -887,39 +969,82 @@ async function resolveCoordinatesForPayload(payload) {
   }
 }
 
+function supabaseErrorText(error) {
+  return [error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function normalizeColumnName(rawColumn) {
+  if (!rawColumn) return "";
+  const cleaned = String(rawColumn).replace(/["']/g, "").trim();
+  if (!cleaned) return "";
+  const pathParts = cleaned.split(".");
+  return pathParts[pathParts.length - 1].trim();
+}
+
+function extractMissingColumnFromSupabaseError(error) {
+  const errorText = supabaseErrorText(error);
+  if (!errorText) return null;
+
+  const matchers = [
+    /could not find the ['"]([^'"]+)['"] column/i,
+    /could not find column ['"]([^'"]+)['"]/i,
+    /column ["']([^"']+)["'] does not exist/i
+  ];
+
+  for (const pattern of matchers) {
+    const match = errorText.match(pattern);
+    const normalized = normalizeColumnName(match?.[1]);
+    if (normalized) return normalized;
+  }
+
+  return null;
+}
+
 async function insertEventWithSchemaFallback(client, payload) {
   const tableName = state.debug.tableName || "events";
   const tryInsert = async (row) =>
     client.from(tableName).insert([row]).select("*").single();
-
-  const primary = await tryInsert(payload);
-  if (!primary.error) return primary;
-
-  const errorMessage = String(primary.error.message || "");
-  const missingAddressColumn =
-    /could not find the 'address' column/i.test(errorMessage) ||
-    /column ["']address["'] does not exist/i.test(errorMessage);
-  const missingGeocodingQueryColumn =
-    /could not find the 'geocoding_query' column/i.test(errorMessage) ||
-    /column ["']geocoding_query["'] does not exist/i.test(errorMessage);
-
-  if (!missingAddressColumn && !missingGeocodingQueryColumn) return primary;
-
   const fallbackPayload = { ...payload };
-  if (missingAddressColumn) {
-    delete fallbackPayload.address;
-  }
-  if (missingAddressColumn || missingGeocodingQueryColumn) {
-    delete fallbackPayload.geocoding_query;
-  }
-  const fallback = await tryInsert(fallbackPayload);
+  const removedColumns = new Set();
+  const schemaFallbackPriority = [
+    "address",
+    "geocoding_query",
+    "verification_notes",
+    "submitted_by",
+    "contact_email",
+    "status",
+    "country",
+    "event_time",
+    "price_text",
+    "description"
+  ];
+  let lastResult = null;
+  const maxAttempts = Object.keys(fallbackPayload).length + 1;
 
-  return fallback.error
-    ? primary
-    : {
-        data: fallback.data,
-        error: null
-      };
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = await tryInsert(fallbackPayload);
+    lastResult = result;
+    if (!result.error) return result;
+
+    const errorText = supabaseErrorText(result.error);
+    let missingColumn = extractMissingColumnFromSupabaseError(result.error);
+    if (!missingColumn && /schema cache/i.test(errorText)) {
+      missingColumn = schemaFallbackPriority.find(
+        (key) => Object.prototype.hasOwnProperty.call(fallbackPayload, key) && !removedColumns.has(key)
+      );
+    }
+    if (!missingColumn) return result;
+    if (!Object.prototype.hasOwnProperty.call(fallbackPayload, missingColumn)) return result;
+    if (removedColumns.has(missingColumn)) return result;
+
+    removedColumns.add(missingColumn);
+    delete fallbackPayload[missingColumn];
+    console.warn(`[PartyRadar Debug] Retrying insert without missing column: ${missingColumn}`);
+  }
+
+  return lastResult || { data: null, error: { message: "Insert failed" } };
 }
 
 function splitGenres(value) {
@@ -1143,12 +1268,25 @@ function renderModerationPanel() {
     const card = document.createElement("article");
     card.className = "admin-card";
     card.dataset.eventId = event.id;
+    let geoStatus = t("admin_geo_unknown");
+    let geoStatusClass = "";
+    if (Number.isFinite(event.lat) && Number.isFinite(event.lng)) {
+      geoStatus = t("admin_geo_ok");
+      geoStatusClass = "admin-geo-badge--ok";
+    } else if (event.geocoding_query) {
+      geoStatus = t("admin_geo_missing");
+      geoStatusClass = "admin-geo-badge--missing";
+    }
     card.innerHTML = `
       <h4>${event.name}</h4>
       <div class="admin-card__meta">
         <span>${formatEventPlace(event)}</span>
         <span>${formatDateTime(event)}</span>
         <span>${event.genre || "-"}</span>
+        <span class="admin-card__geo">
+          ${t("admin_geo_label")}:
+          <strong class="admin-geo-badge ${geoStatusClass}">${geoStatus}</strong>
+        </span>
         <span>${t("admin_submitted_by")}: ${event.submitted_by || "-"}</span>
         <span>${t("admin_contact")}: ${event.contact_email || "-"}</span>
       </div>
