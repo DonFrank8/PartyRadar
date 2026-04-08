@@ -212,6 +212,7 @@ const I18N = {
     form_label_name: "Name",
     form_label_location_name: "Location",
     form_label_address: "Adresse",
+    form_label_postal_code: "PLZ",
     form_label_city: "Stadt",
     form_label_country: "Land",
     form_label_event_date: "Datum",
@@ -224,6 +225,7 @@ const I18N = {
     form_placeholder_name: "z. B. Summer Beats Night",
     form_placeholder_location_name: "z. B. Beach Club",
     form_placeholder_address: "z. B. Paseo Marítimo 1",
+    form_placeholder_postal_code: "z. B. 29660",
     form_placeholder_city: "z. B. Marbella",
     form_placeholder_country: "z. B. Spanien",
     form_placeholder_event_time: "z. B. 20:30",
@@ -234,6 +236,7 @@ const I18N = {
     create_toggle: "Event hinzufügen",
     create_name: "Name",
     create_location: "Location",
+    create_postal_code: "PLZ",
     create_city: "Stadt",
     create_country: "Land",
     create_date: "Datum",
@@ -343,6 +346,7 @@ const I18N = {
     form_label_name: "Name",
     form_label_location_name: "Location",
     form_label_address: "Address",
+    form_label_postal_code: "Postal code",
     form_label_city: "City",
     form_label_country: "Country",
     form_label_event_date: "Date",
@@ -355,6 +359,7 @@ const I18N = {
     form_placeholder_name: "e.g. Summer Beats Night",
     form_placeholder_location_name: "e.g. Beach Club",
     form_placeholder_address: "e.g. Paseo Maritimo 1",
+    form_placeholder_postal_code: "e.g. 29660",
     form_placeholder_city: "e.g. Marbella",
     form_placeholder_country: "e.g. Spain",
     form_placeholder_event_time: "e.g. 20:30",
@@ -365,6 +370,7 @@ const I18N = {
     create_toggle: "Add event",
     create_name: "Name",
     create_location: "Location",
+    create_postal_code: "Postal code",
     create_city: "City",
     create_country: "Country",
     create_date: "Date",
@@ -474,6 +480,7 @@ const I18N = {
     form_label_name: "Nombre",
     form_label_location_name: "Ubicación",
     form_label_address: "Dirección",
+    form_label_postal_code: "Código postal",
     form_label_city: "Ciudad",
     form_label_country: "País",
     form_label_event_date: "Fecha",
@@ -486,6 +493,7 @@ const I18N = {
     form_placeholder_name: "p. ej. Summer Beats Night",
     form_placeholder_location_name: "p. ej. Beach Club",
     form_placeholder_address: "p. ej. Paseo Marítimo 1",
+    form_placeholder_postal_code: "p. ej. 29660",
     form_placeholder_city: "p. ej. Marbella",
     form_placeholder_country: "p. ej. España",
     form_placeholder_event_time: "p. ej. 20:30",
@@ -496,6 +504,7 @@ const I18N = {
     create_toggle: "Añadir evento",
     create_name: "Nombre",
     create_location: "Ubicación",
+    create_postal_code: "Código postal",
     create_city: "Ciudad",
     create_country: "País",
     create_date: "Fecha",
@@ -583,6 +592,7 @@ const dom = {
   formName: document.getElementById("formName"),
   formLocationName: document.getElementById("formLocationName"),
   formAddress: document.getElementById("formAddress"),
+  formPostalCode: document.getElementById("formPostalCode"),
   formCity: document.getElementById("formCity"),
   formCountry: document.getElementById("formCountry"),
   formDate: document.getElementById("formDate"),
@@ -773,8 +783,9 @@ function normalizeEvent(event, index) {
   const lat = Number(event.lat ?? event.latitude ?? null);
   const lng = Number(event.lng ?? event.longitude ?? null);
   const address = String(event.address || event.street || "").trim();
+  const postal_code = String(event.postal_code || event.zip || "").trim();
   const geocodingQuery = String(event.geocoding_query || "").trim();
-  const composedAddress = [event.location_name, address, event.city, event.country]
+  const composedAddress = [event.location_name, address, postal_code, event.city, event.country]
     .filter(Boolean)
     .join(", ");
   const normalizedGeocodingQuery = geocodingQuery || composedAddress;
@@ -783,6 +794,7 @@ function normalizeEvent(event, index) {
     name: event.name || event.title || "Untitled Event",
     location_name: event.location_name || event.location || "Unknown venue",
     address: event.address || event.street || "",
+    postal_code,
     city: event.city || event.location_city || "",
     event_date: event.event_date || event.date || "",
     event_time: event.event_time || event.time || "",
@@ -806,6 +818,7 @@ function readFormPayload() {
     name: dom.formName.value.trim(),
     location_name: dom.formLocationName.value.trim(),
     address: dom.formAddress?.value.trim() || "",
+    postal_code: dom.formPostalCode?.value.trim() || "",
     city: dom.formCity.value.trim(),
     country: dom.formCountry.value.trim(),
     event_date: dom.formDate.value,
@@ -825,7 +838,9 @@ function validateFormPayload(payload) {
     payload.name &&
     payload.location_name &&
     payload.address &&
+    payload.postal_code &&
     payload.city &&
+    payload.country &&
     payload.event_date &&
     payload.genre &&
     payload.submitted_by &&
@@ -853,6 +868,7 @@ function buildInsertPayload(payload) {
     name: payload.name,
     location_name: payload.location_name,
     address: payload.address || null,
+    postal_code: payload.postal_code || null,
     city: payload.city,
     country: payload.country || null,
     event_date: payload.event_date,
@@ -932,7 +948,13 @@ async function geocodeAddressWithMapbox(query) {
 }
 
 function buildGeocodingQuery(payload) {
-  return [payload.location_name, payload.address, payload.city, payload.country]
+  return [
+    payload.location_name,
+    payload.address,
+    payload.postal_code,
+    payload.city,
+    payload.country
+  ]
     .filter(Boolean)
     .join(", ");
 }
@@ -1037,6 +1059,7 @@ async function insertEventWithSchemaFallback(client, payload) {
   const removedColumns = new Set();
   const schemaFallbackPriority = [
     "address",
+    "postal_code",
     "geocoding_query",
     "verification_notes",
     "submitted_by",

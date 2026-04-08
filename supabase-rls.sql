@@ -3,6 +3,7 @@
 
 -- 0) Bootstrap legacy schemas (idempotent)
 alter table public.events add column if not exists address text;
+alter table public.events add column if not exists postal_code text;
 alter table public.events add column if not exists submitted_by text;
 alter table public.events add column if not exists contact_email text;
 alter table public.events add column if not exists verification_notes text;
