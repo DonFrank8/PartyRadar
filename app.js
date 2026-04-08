@@ -1,9 +1,10 @@
 const SUPABASE_URL = "https://dwyhpirtbjfmohcnhdak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__H_WNdy1NIfoQbQfyNILKQ_Qb8wQfgn";
-const APP_BUILD_VERSION = "2026.04.08-6";
+const APP_BUILD_VERSION = "2026.04.08-7";
 const ADMIN_REQUIRED_ROLE = "admin";
 const USE_MODERATION_EDGE_FUNCTION = false;
 const MODERATION_EDGE_FUNCTION_NAME = "moderate-event";
+const ENABLE_AUTO_GEOCODING = false;
 
 window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
 
@@ -155,7 +156,7 @@ const I18N = {
     form_hint: "Dein Event wird eingereicht und vor Veröffentlichung geprüft.",
     form_submit: "Event einreichen",
     form_loading: "Speichere...",
-    form_success: "Dein Event wird geprüft, bevor es veröffentlicht wird.",
+    form_success: "Dein Event wurde eingereicht und wird vor der Veröffentlichung geprüft.",
     form_error_generic: "Event konnte nicht gespeichert werden.",
     admin_title: "Moderation",
     admin_subtitle: "Prüfe eingereichte Events und entscheide über Veröffentlichung.",
@@ -185,9 +186,10 @@ const I18N = {
     admin_session_error: "Admin-Session konnte nicht geprüft werden.",
     form_error_required: "Bitte Pflichtfelder ausfüllen.",
     form_error_email: "Bitte eine gültige E-Mail-Adresse angeben.",
-    form_error_latlng: "Latitude und Longitude müssen gültige Zahlen sein.",
+    form_error_geocode_pending: "Adresse gespeichert. Koordinaten werden bei der Freigabe ergänzt.",
     form_label_name: "Name",
     form_label_location_name: "Location",
+    form_label_address: "Adresse",
     form_label_city: "Stadt",
     form_label_country: "Land",
     form_label_event_date: "Datum",
@@ -197,18 +199,15 @@ const I18N = {
     form_label_description: "Beschreibung",
     form_label_submitted_by: "Eingereicht von",
     form_label_contact_email: "Kontakt E-Mail",
-    form_label_lat: "Latitude",
-    form_label_lng: "Longitude",
     form_placeholder_name: "z. B. Summer Beats Night",
     form_placeholder_location_name: "z. B. Beach Club",
+    form_placeholder_address: "z. B. Paseo Marítimo 1",
     form_placeholder_city: "z. B. Marbella",
     form_placeholder_country: "z. B. Spanien",
     form_placeholder_event_time: "z. B. 20:30",
     form_placeholder_genre: "z. B. Latin, DJ Set",
     form_placeholder_price_text: "z. B. 25 EUR",
     form_placeholder_description: "Kurzbeschreibung des Events",
-    form_placeholder_lat: "z. B. 36.4959",
-    form_placeholder_lng: "z. B. -4.7345",
     create_title: "Neues Event",
     create_toggle: "Event hinzufügen",
     create_name: "Name",
@@ -277,7 +276,7 @@ const I18N = {
     form_hint: "Your event will be reviewed before publication.",
     form_submit: "Submit event",
     form_loading: "Saving...",
-    form_success: "Your event will be reviewed before publication.",
+    form_success: "Your event was submitted and will be reviewed before it is published.",
     form_error_generic: "Event could not be saved.",
     admin_title: "Moderation",
     admin_subtitle: "Review submitted events and decide publication.",
@@ -307,9 +306,10 @@ const I18N = {
     admin_session_error: "Could not validate admin session.",
     form_error_required: "Please fill in required fields.",
     form_error_email: "Please enter a valid email address.",
-    form_error_latlng: "Latitude and longitude must be valid numbers.",
+    form_error_geocode_pending: "Address saved. Coordinates can be added during moderation.",
     form_label_name: "Name",
     form_label_location_name: "Location",
+    form_label_address: "Address",
     form_label_city: "City",
     form_label_country: "Country",
     form_label_event_date: "Date",
@@ -319,18 +319,15 @@ const I18N = {
     form_label_description: "Description",
     form_label_submitted_by: "Submitted by",
     form_label_contact_email: "Contact email",
-    form_label_lat: "Latitude",
-    form_label_lng: "Longitude",
     form_placeholder_name: "e.g. Summer Beats Night",
     form_placeholder_location_name: "e.g. Beach Club",
+    form_placeholder_address: "e.g. Paseo Maritimo 1",
     form_placeholder_city: "e.g. Marbella",
     form_placeholder_country: "e.g. Spain",
     form_placeholder_event_time: "e.g. 20:30",
     form_placeholder_genre: "e.g. Latin, DJ Set",
     form_placeholder_price_text: "e.g. 25 EUR",
     form_placeholder_description: "Short event description",
-    form_placeholder_lat: "e.g. 36.4959",
-    form_placeholder_lng: "e.g. -4.7345",
     create_title: "New event",
     create_toggle: "Add event",
     create_name: "Name",
@@ -399,7 +396,7 @@ const I18N = {
     form_hint: "Tu evento será revisado antes de publicarse.",
     form_submit: "Enviar evento",
     form_loading: "Guardando...",
-    form_success: "Tu evento será revisado antes de publicarse.",
+    form_success: "Tu evento fue enviado y será revisado antes de publicarse.",
     form_error_generic: "No se pudo guardar el evento.",
     admin_title: "Moderación",
     admin_subtitle: "Revisa eventos enviados y decide su publicación.",
@@ -429,9 +426,10 @@ const I18N = {
     admin_session_error: "No se pudo validar la sesión de admin.",
     form_error_required: "Completa los campos obligatorios.",
     form_error_email: "Ingresa un correo electrónico válido.",
-    form_error_latlng: "Latitud y longitud deben ser números válidos.",
+    form_error_geocode_pending: "Dirección guardada. Las coordenadas se pueden completar durante la moderación.",
     form_label_name: "Nombre",
     form_label_location_name: "Ubicación",
+    form_label_address: "Dirección",
     form_label_city: "Ciudad",
     form_label_country: "País",
     form_label_event_date: "Fecha",
@@ -441,18 +439,15 @@ const I18N = {
     form_label_description: "Descripción",
     form_label_submitted_by: "Enviado por",
     form_label_contact_email: "Correo de contacto",
-    form_label_lat: "Latitud",
-    form_label_lng: "Longitud",
     form_placeholder_name: "p. ej. Summer Beats Night",
     form_placeholder_location_name: "p. ej. Beach Club",
+    form_placeholder_address: "p. ej. Paseo Marítimo 1",
     form_placeholder_city: "p. ej. Marbella",
     form_placeholder_country: "p. ej. España",
     form_placeholder_event_time: "p. ej. 20:30",
     form_placeholder_genre: "p. ej. Latin, DJ Set",
     form_placeholder_price_text: "p. ej. 25 EUR",
     form_placeholder_description: "Descripción breve del evento",
-    form_placeholder_lat: "p. ej. 36.4959",
-    form_placeholder_lng: "p. ej. -4.7345",
     create_title: "Nuevo evento",
     create_toggle: "Añadir evento",
     create_name: "Nombre",
@@ -541,6 +536,7 @@ const dom = {
   formSubmitButton: document.getElementById("formSubmitButton"),
   formName: document.getElementById("formName"),
   formLocationName: document.getElementById("formLocationName"),
+  formAddress: document.getElementById("formAddress"),
   formCity: document.getElementById("formCity"),
   formCountry: document.getElementById("formCountry"),
   formDate: document.getElementById("formDate"),
@@ -550,8 +546,6 @@ const dom = {
   formSubmittedBy: document.getElementById("formSubmittedBy"),
   formContactEmail: document.getElementById("formContactEmail"),
   formDescription: document.getElementById("formDescription"),
-  formLat: document.getElementById("formLat"),
-  formLng: document.getElementById("formLng"),
   debugPanel: document.getElementById("debugPanel"),
   debugLoadedCount: document.getElementById("debugLoadedCount"),
   debugErrorState: document.getElementById("debugErrorState"),
@@ -747,17 +741,11 @@ function normalizeEvent(event, index) {
   };
 }
 
-function parseOptionalNumber(value) {
-  const normalized = String(value || "").trim();
-  if (!normalized) return null;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : NaN;
-}
-
 function readFormPayload() {
   return {
     name: dom.formName.value.trim(),
     location_name: dom.formLocationName.value.trim(),
+    address: dom.formAddress?.value.trim() || "",
     city: dom.formCity.value.trim(),
     country: dom.formCountry.value.trim(),
     event_date: dom.formDate.value,
@@ -767,8 +755,8 @@ function readFormPayload() {
     submitted_by: dom.formSubmittedBy.value.trim(),
     contact_email: dom.formContactEmail.value.trim(),
     description: dom.formDescription.value.trim(),
-    lat: parseOptionalNumber(dom.formLat.value),
-    lng: parseOptionalNumber(dom.formLng.value)
+    lat: null,
+    lng: null
   };
 }
 
@@ -776,22 +764,18 @@ function validateFormPayload(payload) {
   const requiredFilled =
     payload.name &&
     payload.location_name &&
+    payload.address &&
     payload.city &&
     payload.event_date &&
     payload.genre &&
     payload.submitted_by &&
-    payload.contact_email &&
-    payload.lat !== null &&
-    payload.lng !== null;
+    payload.contact_email;
   if (!requiredFilled) {
     return { valid: false, message: t("form_error_required") };
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(payload.contact_email)) {
     return { valid: false, message: t("form_error_email") };
-  }
-  if (Number.isNaN(payload.lat) || Number.isNaN(payload.lng)) {
-    return { valid: false, message: t("form_error_latlng") };
   }
   return { valid: true, message: "" };
 }
@@ -802,9 +786,15 @@ function clearEventForm() {
 }
 
 function buildInsertPayload(payload) {
+  // Address is collected now; geocoding can later resolve this into coordinates.
+  const geocoding_query = [payload.location_name, payload.address, payload.city, payload.country]
+    .filter(Boolean)
+    .join(", ");
+
   return {
     name: payload.name,
     location_name: payload.location_name,
+    address: payload.address || null,
     city: payload.city,
     country: payload.country || null,
     event_date: payload.event_date,
@@ -816,6 +806,7 @@ function buildInsertPayload(payload) {
     submitted_by: payload.submitted_by,
     status: "pending",
     verification_notes: null,
+    geocoding_query: geocoding_query || null,
     lat: payload.lat,
     lng: payload.lng
   };
