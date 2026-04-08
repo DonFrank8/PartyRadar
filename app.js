@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://dwyhpirtbjfmohcnhdak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__H_WNdy1NIfoQbQfyNILKQ_Qb8wQfgn";
-const APP_BUILD_VERSION = "2026.04.07-2";
+const APP_BUILD_VERSION = "2026.04.08-1";
 
 window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
 
@@ -143,7 +143,51 @@ const I18N = {
     debug_note_supabase: "Kein Fallback - Daten aus Supabase aktiv",
     debug_note_no_data: "Keine Daten aus Supabase",
     debug_note_error: "Supabase Fehler - Demo-Fallback aktiv",
-    button_all: "Alle"
+    button_all: "Alle",
+    form_title: "Event hinzufügen",
+    form_hint: "Neues Event direkt in Supabase speichern.",
+    form_submit: "Event hinzufügen",
+    form_toggle: "Event hinzufügen",
+    form_loading: "Speichere...",
+    form_success: "Event erfolgreich gespeichert.",
+    form_error_generic: "Event konnte nicht gespeichert werden.",
+    form_error_required: "Bitte Pflichtfelder ausfüllen.",
+    form_error_latlng: "Latitude und Longitude müssen gültige Zahlen sein.",
+    form_label_name: "Name",
+    form_label_location_name: "Location",
+    form_label_city: "Stadt",
+    form_label_country: "Land",
+    form_label_event_date: "Datum",
+    form_label_event_time: "Uhrzeit",
+    form_label_genre: "Genre",
+    form_label_price_text: "Preis",
+    form_label_description: "Beschreibung",
+    form_label_lat: "Latitude",
+    form_label_lng: "Longitude",
+    form_placeholder_name: "z. B. Summer Beats Night",
+    form_placeholder_location_name: "z. B. Beach Club",
+    form_placeholder_city: "z. B. Marbella",
+    form_placeholder_country: "z. B. Spanien",
+    form_placeholder_event_time: "z. B. 20:30",
+    form_placeholder_genre: "z. B. Latin, DJ Set",
+    form_placeholder_price_text: "z. B. 25 EUR",
+    form_placeholder_description: "Kurzbeschreibung des Events",
+    form_placeholder_lat: "z. B. 36.4959",
+    form_placeholder_lng: "z. B. -4.7345",
+    create_title: "Neues Event",
+    create_toggle: "Event hinzufügen",
+    create_name: "Name",
+    create_location: "Location",
+    create_city: "Stadt",
+    create_country: "Land",
+    create_date: "Datum",
+    create_time: "Uhrzeit",
+    create_genre: "Genre",
+    create_price: "Preistext",
+    create_lat: "Latitude",
+    create_lng: "Longitude",
+    create_description: "Beschreibung",
+    create_submit: "Speichern"
   },
   en: {
     hero_title: "Summer music events near you",
@@ -189,7 +233,51 @@ const I18N = {
     debug_note_supabase: "No fallback - Supabase data active",
     debug_note_no_data: "No data from Supabase",
     debug_note_error: "Supabase error - demo fallback active",
-    button_all: "All"
+    button_all: "All",
+    form_title: "Add event",
+    form_hint: "Save a new event directly to Supabase.",
+    form_submit: "Add event",
+    form_toggle: "Add event",
+    form_loading: "Saving...",
+    form_success: "Event saved successfully.",
+    form_error_generic: "Event could not be saved.",
+    form_error_required: "Please fill in required fields.",
+    form_error_latlng: "Latitude and longitude must be valid numbers.",
+    form_label_name: "Name",
+    form_label_location_name: "Location",
+    form_label_city: "City",
+    form_label_country: "Country",
+    form_label_event_date: "Date",
+    form_label_event_time: "Time",
+    form_label_genre: "Genre",
+    form_label_price_text: "Price",
+    form_label_description: "Description",
+    form_label_lat: "Latitude",
+    form_label_lng: "Longitude",
+    form_placeholder_name: "e.g. Summer Beats Night",
+    form_placeholder_location_name: "e.g. Beach Club",
+    form_placeholder_city: "e.g. Marbella",
+    form_placeholder_country: "e.g. Spain",
+    form_placeholder_event_time: "e.g. 20:30",
+    form_placeholder_genre: "e.g. Latin, DJ Set",
+    form_placeholder_price_text: "e.g. 25 EUR",
+    form_placeholder_description: "Short event description",
+    form_placeholder_lat: "e.g. 36.4959",
+    form_placeholder_lng: "e.g. -4.7345",
+    create_title: "New event",
+    create_toggle: "Add event",
+    create_name: "Name",
+    create_location: "Location",
+    create_city: "City",
+    create_country: "Country",
+    create_date: "Date",
+    create_time: "Time",
+    create_genre: "Genre",
+    create_price: "Price text",
+    create_lat: "Latitude",
+    create_lng: "Longitude",
+    create_description: "Description",
+    create_submit: "Save"
   },
   es: {
     hero_title: "Eventos musicales de verano cerca de ti",
@@ -235,7 +323,51 @@ const I18N = {
     debug_note_supabase: "Sin fallback - datos de Supabase activos",
     debug_note_no_data: "Sin datos de Supabase",
     debug_note_error: "Error de Supabase - fallback demo activo",
-    button_all: "Todos"
+    button_all: "Todos",
+    form_title: "Añadir evento",
+    form_hint: "Guardar nuevo evento directamente en Supabase.",
+    form_submit: "Añadir evento",
+    form_toggle: "Añadir evento",
+    form_loading: "Guardando...",
+    form_success: "Evento guardado correctamente.",
+    form_error_generic: "No se pudo guardar el evento.",
+    form_error_required: "Completa los campos obligatorios.",
+    form_error_latlng: "Latitud y longitud deben ser números válidos.",
+    form_label_name: "Nombre",
+    form_label_location_name: "Ubicación",
+    form_label_city: "Ciudad",
+    form_label_country: "País",
+    form_label_event_date: "Fecha",
+    form_label_event_time: "Hora",
+    form_label_genre: "Género",
+    form_label_price_text: "Precio",
+    form_label_description: "Descripción",
+    form_label_lat: "Latitud",
+    form_label_lng: "Longitud",
+    form_placeholder_name: "p. ej. Summer Beats Night",
+    form_placeholder_location_name: "p. ej. Beach Club",
+    form_placeholder_city: "p. ej. Marbella",
+    form_placeholder_country: "p. ej. España",
+    form_placeholder_event_time: "p. ej. 20:30",
+    form_placeholder_genre: "p. ej. Latin, DJ Set",
+    form_placeholder_price_text: "p. ej. 25 EUR",
+    form_placeholder_description: "Descripción breve del evento",
+    form_placeholder_lat: "p. ej. 36.4959",
+    form_placeholder_lng: "p. ej. -4.7345",
+    create_title: "Nuevo evento",
+    create_toggle: "Añadir evento",
+    create_name: "Nombre",
+    create_location: "Ubicación",
+    create_city: "Ciudad",
+    create_country: "País",
+    create_date: "Fecha",
+    create_time: "Hora",
+    create_genre: "Género",
+    create_price: "Precio",
+    create_lat: "Latitud",
+    create_lng: "Longitud",
+    create_description: "Descripción",
+    create_submit: "Guardar"
   }
 };
 
@@ -244,6 +376,12 @@ const LOCALE_MAP = {
   en: "en-US",
   es: "es-ES"
 };
+
+const SUPPORTED_LANGUAGES = [
+  { code: "de", label: "Deutsch", short: "DE" },
+  { code: "en", label: "English", short: "EN" },
+  { code: "es", label: "Español", short: "ES" }
+];
 
 const state = {
   allEvents: [],
@@ -266,6 +404,8 @@ const state = {
 
 const dom = {
   htmlRoot: document.documentElement,
+  languageSwitch: document.getElementById("languageSwitch"),
+  languageSelect: document.getElementById("languageSelect"),
   status: document.getElementById("status"),
   eventList: document.getElementById("eventList"),
   eventDetails: document.getElementById("eventDetails"),
@@ -277,6 +417,22 @@ const dom = {
   genreFilterGroup: document.getElementById("genreFilterGroup"),
   clearGenresButton: document.getElementById("clearGenresButton"),
   resetFilters: document.getElementById("resetFilters"),
+  eventFormSection: document.getElementById("eventFormSection"),
+  eventFormToggle: document.getElementById("eventFormToggle"),
+  eventForm: document.getElementById("eventForm"),
+  formFeedback: document.getElementById("formFeedback"),
+  formSubmitButton: document.getElementById("formSubmitButton"),
+  formName: document.getElementById("formName"),
+  formLocationName: document.getElementById("formLocationName"),
+  formCity: document.getElementById("formCity"),
+  formCountry: document.getElementById("formCountry"),
+  formDate: document.getElementById("formDate"),
+  formTime: document.getElementById("formTime"),
+  formGenre: document.getElementById("formGenre"),
+  formPrice: document.getElementById("formPrice"),
+  formDescription: document.getElementById("formDescription"),
+  formLat: document.getElementById("formLat"),
+  formLng: document.getElementById("formLng"),
   debugPanel: document.getElementById("debugPanel"),
   debugLoadedCount: document.getElementById("debugLoadedCount"),
   debugErrorState: document.getElementById("debugErrorState"),
@@ -291,6 +447,28 @@ const markerEventsById = new Map();
 
 function resolveLanguage(langValue) {
   return I18N[langValue] ? langValue : "de";
+}
+
+function availableLanguageCodes() {
+  return SUPPORTED_LANGUAGES.map((language) => language.code);
+}
+
+function resolveLanguageFromBrowser(defaultLang = "de") {
+  const candidates = [
+    navigator.language,
+    ...(Array.isArray(navigator.languages) ? navigator.languages : [])
+  ]
+    .filter(Boolean)
+    .map((lang) => String(lang).toLowerCase());
+
+  for (const candidate of candidates) {
+    const shortCode = candidate.split("-")[0];
+    if (availableLanguageCodes().includes(shortCode)) {
+      return shortCode;
+    }
+  }
+
+  return defaultLang;
 }
 
 function t(key, params = {}) {
@@ -311,10 +489,60 @@ function applyStaticTranslations() {
   document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
     element.placeholder = t(element.dataset.i18nPlaceholder);
   });
+  if (dom.languageSelect) {
+    dom.languageSelect.value = state.lang;
+  }
   const buildBadge = document.getElementById("buildBadge");
   if (buildBadge) {
     buildBadge.textContent = `Build ${APP_BUILD_VERSION}`;
   }
+  renderLanguageControls();
+}
+
+function renderLanguageControls() {
+  if (dom.languageSelect) {
+    dom.languageSelect.innerHTML = "";
+    SUPPORTED_LANGUAGES.forEach((language) => {
+      const option = document.createElement("option");
+      option.value = language.code;
+      option.textContent = language.label;
+      dom.languageSelect.append(option);
+    });
+    dom.languageSelect.value = state.lang;
+  }
+
+  if (dom.languageSwitch) {
+    dom.languageSwitch.innerHTML = "";
+    SUPPORTED_LANGUAGES.forEach((language) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "language-switch__button";
+      button.dataset.langSwitch = language.code;
+      button.textContent = language.short;
+      const isActive = language.code === state.lang;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+      dom.languageSwitch.append(button);
+    });
+  }
+}
+
+function switchLanguage(nextLangCode) {
+  const nextLang = resolveLanguage(nextLangCode);
+  if (nextLang === state.lang) return;
+  state.lang = nextLang;
+  applyStaticTranslations();
+  updateFilterOptions();
+  applyFiltersFromQuery();
+  applyFilters();
+  if (state.selectedEventId) {
+    const selected = state.filteredEvents.find((event) => event.id === state.selectedEventId) || null;
+    renderEventDetails(selected);
+  } else {
+    renderEventDetails(null);
+  }
+  updateDebugPanel();
+  updateUrlFromFilters();
 }
 
 function getLocale() {
@@ -328,6 +556,21 @@ function setStatus(message, tone = "loading") {
 
 function setResultCount(count) {
   dom.resultCount.textContent = t("result_count", { count });
+}
+
+function setFormFeedback(message, tone = "info") {
+  if (!dom.formFeedback) return;
+  dom.formFeedback.hidden = !message;
+  dom.formFeedback.textContent = message || "";
+  dom.formFeedback.className = "add-event-message";
+  if (message && tone === "error") dom.formFeedback.classList.add("is-error");
+  if (message && tone === "success") dom.formFeedback.classList.add("is-success");
+}
+
+function setFormSubmitting(isSubmitting) {
+  if (!dom.formSubmitButton) return;
+  dom.formSubmitButton.disabled = isSubmitting;
+  dom.formSubmitButton.textContent = isSubmitting ? t("form_loading") : t("form_submit");
 }
 
 function updateDebugPanel() {
@@ -360,6 +603,68 @@ function normalizeEvent(event, index) {
     image_url: event.image_url || event.image || "",
     lat: Number.isFinite(lat) ? lat : null,
     lng: Number.isFinite(lng) ? lng : null
+  };
+}
+
+function parseOptionalNumber(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function readFormPayload() {
+  return {
+    name: dom.formName.value.trim(),
+    location_name: dom.formLocationName.value.trim(),
+    city: dom.formCity.value.trim(),
+    country: dom.formCountry.value.trim(),
+    event_date: dom.formDate.value,
+    event_time: dom.formTime.value,
+    genre: dom.formGenre.value.trim(),
+    price_text: dom.formPrice.value.trim(),
+    description: dom.formDescription.value.trim(),
+    lat: parseOptionalNumber(dom.formLat.value),
+    lng: parseOptionalNumber(dom.formLng.value)
+  };
+}
+
+function validateFormPayload(payload) {
+  const requiredFilled =
+    payload.name &&
+    payload.location_name &&
+    payload.city &&
+    payload.event_date &&
+    payload.genre &&
+    payload.lat !== null &&
+    payload.lng !== null;
+  if (!requiredFilled) {
+    return { valid: false, message: t("form_error_required") };
+  }
+  if (Number.isNaN(payload.lat) || Number.isNaN(payload.lng)) {
+    return { valid: false, message: t("form_error_latlng") };
+  }
+  return { valid: true, message: "" };
+}
+
+function clearEventForm() {
+  if (!dom.eventForm) return;
+  dom.eventForm.reset();
+}
+
+function buildInsertPayload(payload) {
+  return {
+    name: payload.name,
+    location_name: payload.location_name,
+    city: payload.city,
+    country: payload.country || null,
+    event_date: payload.event_date,
+    event_time: payload.event_time || null,
+    genre: payload.genre,
+    price_text: payload.price_text || null,
+    description: payload.description || null,
+    lat: payload.lat,
+    lng: payload.lng
   };
 }
 
@@ -758,13 +1063,89 @@ function resetFilters() {
   renderEventDetails(null);
 }
 
+function toggleCreateEventForm() {
+  if (!dom.eventForm) return;
+  const shouldShow = dom.eventForm.hidden;
+  dom.eventForm.hidden = !shouldShow;
+  if (dom.eventFormToggle) {
+    dom.eventFormToggle.textContent = shouldShow ? "−" : t("form_toggle");
+    dom.eventFormToggle.setAttribute("aria-expanded", String(shouldShow));
+  }
+}
+
+async function reloadEventsAndRender() {
+  await loadEvents();
+  updateFilterOptions();
+  applyFiltersFromQuery();
+  applyFilters();
+}
+
+async function handleCreateEventSubmit(submitEvent) {
+  submitEvent.preventDefault();
+  setFormFeedback("");
+
+  const payload = readFormPayload();
+  const validation = validateFormPayload(payload);
+  if (!validation.valid) {
+    setFormFeedback(validation.message, "error");
+    return;
+  }
+
+  setFormSubmitting(true);
+  try {
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const insertPayload = buildInsertPayload(payload);
+    const { data, error } = await client
+      .from(state.debug.tableName || "events")
+      .insert([insertPayload])
+      .select("*")
+      .single();
+
+    console.log("[PartyRadar Debug] Event insert data:", data);
+    console.log("[PartyRadar Debug] Event insert error:", error);
+
+    if (error) throw new Error(error.message);
+
+    clearEventForm();
+    setFormFeedback(t("form_success"), "success");
+    await reloadEventsAndRender();
+
+    const insertedId = data?.id !== undefined && data?.id !== null ? String(data.id) : null;
+    if (insertedId) {
+      selectEvent(insertedId, { flyTo: true, openPopup: true, scrollIntoView: true });
+    } else if (data?.lat !== null && data?.lng !== null) {
+      map.flyTo([data.lat, data.lng], 13, { duration: 0.6 });
+    }
+  } catch (error) {
+    console.error("Event speichern fehlgeschlagen:", error);
+    setFormFeedback(`${t("form_error_generic")} ${error.message || ""}`.trim(), "error");
+  } finally {
+    setFormSubmitting(false);
+  }
+}
+
 function bindEvents() {
   dom.filtersForm.addEventListener("submit", (event) => event.preventDefault());
   dom.searchInput.addEventListener("input", applyFilters);
   dom.cityFilter.addEventListener("change", applyFilters);
   dom.dateFilter.addEventListener("change", applyFilters);
+  if (dom.languageSwitch) {
+    dom.languageSwitch.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-lang-switch]");
+      if (!button) return;
+      switchLanguage(button.dataset.langSwitch);
+    });
+  }
+  if (dom.languageSelect) {
+    dom.languageSelect.addEventListener("change", () => {
+      switchLanguage(dom.languageSelect.value);
+    });
+  }
   dom.resetFilters.addEventListener("click", resetFilters);
   dom.clearGenresButton.addEventListener("click", clearGenreSelection);
+  if (dom.eventFormToggle) {
+    dom.eventFormToggle.addEventListener("click", toggleCreateEventForm);
+  }
 
   dom.genreFilterGroup.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-genre]");
@@ -778,6 +1159,10 @@ function bindEvents() {
     renderGenreFilter();
     applyFilters();
   });
+
+  if (dom.eventForm) {
+    dom.eventForm.addEventListener("submit", handleCreateEventSubmit);
+  }
 }
 
 async function fetchEventsFromSupabase() {
@@ -840,7 +1225,8 @@ async function loadEvents() {
 
 async function startApp() {
   const query = readQueryParams();
-  state.lang = resolveLanguage(query.lang);
+  const requestedLang = resolveLanguage(query.lang);
+  state.lang = query.lang ? requestedLang : resolveLanguageFromBrowser(requestedLang);
   applyStaticTranslations();
   renderEventDetails(null);
 

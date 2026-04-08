@@ -35,6 +35,11 @@
         <span data-i18n="hero_chip_fallback">Fallback inklusive</span>
         <span id="buildBadge">Version: live</span>
       </div>
+      <div id="languageSwitch" class="language-switch" role="group" aria-label="Language switch">
+        <button type="button" class="language-switch__button is-active" data-lang-switch="de">DE</button>
+        <button type="button" class="language-switch__button" data-lang-switch="en">EN</button>
+        <button type="button" class="language-switch__button" data-lang-switch="es">ES</button>
+      </div>
     </div>
   </header>
 
@@ -45,7 +50,88 @@
         <p class="panel__intro" data-i18n="discover_subtitle">
           Filtere nach Suche, Stadt, Datum und Genres.
         </p>
+        <label class="field field--language-select">
+          <span data-i18n="language_label">Sprache</span>
+          <select id="languageSelect">
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </label>
         <p id="status" class="status status--loading">Initialisiere Anwendung...</p>
+      </section>
+
+      <section id="eventFormSection" class="panel panel--add-event">
+        <div class="panel__heading">
+          <h3 data-i18n="form_title">Neues Event</h3>
+          <button
+            id="eventFormToggle"
+            type="button"
+            class="button-secondary button-secondary--compact"
+            data-i18n="form_toggle"
+            aria-expanded="false"
+            aria-controls="eventForm"
+          >
+            Event hinzufügen
+          </button>
+        </div>
+        <p class="panel__intro" data-i18n="form_hint">Neues Event direkt in Supabase speichern.</p>
+
+        <form id="eventForm" class="add-event-form" novalidate hidden>
+          <div class="add-event-form__grid">
+            <label class="field">
+              <span data-i18n="form_label_name">Name</span>
+              <input name="name" id="formName" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_location_name">Location</span>
+              <input name="location_name" id="formLocationName" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_city">Stadt</span>
+              <input name="city" id="formCity" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_country">Land</span>
+              <input name="country" id="formCountry" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_event_date">Datum</span>
+              <input name="event_date" id="formDate" type="date" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_event_time">Uhrzeit</span>
+              <input name="event_time" id="formTime" type="time">
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_genre">Genre</span>
+              <input name="genre" id="formGenre" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_price_text">Preistext</span>
+              <input name="price_text" id="formPrice" type="text" placeholder="z.B. 25 EUR">
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_lat">Latitude</span>
+              <input name="lat" id="formLat" type="number" step="any" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_lng">Longitude</span>
+              <input name="lng" id="formLng" type="number" step="any" required>
+            </label>
+          </div>
+
+          <label class="field field--full">
+            <span data-i18n="form_label_description">Beschreibung</span>
+            <textarea name="description" id="formDescription" rows="3"></textarea>
+          </label>
+
+          <p id="formFeedback" class="add-event-message" hidden></p>
+
+          <button id="formSubmitButton" type="submit" class="button-secondary button-secondary--primary" data-i18n="form_submit">
+            Speichern
+          </button>
+        </form>
       </section>
 
       <section class="panel panel--list">
