@@ -167,6 +167,123 @@ body {
   min-height: 360px;
 }
 
+.panel--create .panel__heading {
+  margin: 0;
+}
+
+.create-event-form {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+.create-event-form textarea {
+  width: 100%;
+  min-height: 88px;
+  border-radius: 11px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 0.6rem 0.7rem;
+  resize: vertical;
+}
+
+.create-event-form textarea:focus {
+  border-color: transparent;
+  outline: 2px solid rgba(255, 94, 138, 0.65);
+}
+
+.form-status {
+  margin: 0;
+  padding: 0.62rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--surface-border);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.form-status--error {
+  border-color: rgba(255, 179, 71, 0.72);
+  color: #ffe1ad;
+}
+
+.form-status--success {
+  border-color: rgba(46, 219, 196, 0.6);
+  color: #d8fff7;
+}
+
+.button-secondary--compact {
+  min-height: 34px;
+  padding: 0.3rem 0.62rem;
+  font-size: 0.8rem;
+}
+
+.button-secondary--primary {
+  background: linear-gradient(135deg, #ff5e8a 0%, #ff8f5d 100%);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.button-secondary--primary:disabled {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+.panel--add-event summary {
+  cursor: pointer;
+  color: #dce7ff;
+  font-weight: 600;
+}
+
+.panel--add-event[open] summary {
+  margin-bottom: 0.75rem;
+}
+
+.add-event-form {
+  display: grid;
+  gap: 0.68rem;
+}
+
+.add-event-form__grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+.add-event-message {
+  margin: 0;
+  padding: 0.62rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--surface-border);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.add-event-message.is-success {
+  border-color: rgba(46, 219, 196, 0.6);
+  color: #d8fff7;
+}
+
+.add-event-message.is-error {
+  border-color: rgba(255, 179, 71, 0.72);
+  color: #ffe1ad;
+}
+
+.add-event-form,
+.panel--add-event {
+  display: none;
+}
+
 .panel__heading {
   display: flex;
   justify-content: space-between;
