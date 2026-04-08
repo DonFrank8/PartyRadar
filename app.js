@@ -1,10 +1,11 @@
 const SUPABASE_URL = "https://dwyhpirtbjfmohcnhdak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__H_WNdy1NIfoQbQfyNILKQ_Qb8wQfgn";
-const APP_BUILD_VERSION = "2026.04.08-7";
+const APP_BUILD_VERSION = "2026.04.08-8";
 const ADMIN_REQUIRED_ROLE = "admin";
 const USE_MODERATION_EDGE_FUNCTION = false;
 const MODERATION_EDGE_FUNCTION_NAME = "moderate-event";
 const ENABLE_AUTO_GEOCODING = true;
+const GEOCODING_PROVIDER = "nominatim";
 
 window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
 
@@ -69,17 +70,19 @@ const demoEvents = [
 const GENRE_ORDER = [
   "Latin",
   "Salsa",
-  "Bachata",
-  "Reggaeton",
-  "Flamenco",
   "Rock",
-  "Pop",
   "Electro",
   "House",
   "Techno",
   "R&B",
-  "Hip-Hop",
+  "Flamenco",
+  "DJ",
+  "Live Music",
   "Jazz",
+  "Pop",
+  "Bachata",
+  "Reggaeton",
+  "Hip-Hop",
   "Live Band",
   "DJ Set"
 ];
@@ -87,17 +90,19 @@ const GENRE_ORDER = [
 const GENRE_ICON_MAP = {
   Latin: "💃",
   Salsa: "🕺",
-  Bachata: "💞",
-  Reggaeton: "🔥",
-  Flamenco: "🌹",
   Rock: "🎸",
-  Pop: "🎤",
   Electro: "⚡",
   House: "🏠",
   Techno: "🔊",
   "R&B": "🎶",
-  "Hip-Hop": "🧢",
+  Flamenco: "🌹",
+  DJ: "🎛️",
+  "Live Music": "🥁",
   Jazz: "🎷",
+  Pop: "🎤",
+  Bachata: "💞",
+  Reggaeton: "🔥",
+  "Hip-Hop": "🧢",
   "Live Band": "🥁",
   "DJ Set": "🎛️"
 };
@@ -106,7 +111,7 @@ const I18N = {
   de: {
     hero_title: "Finde, wo Musik wirklich passiert.",
     hero_subtitle: "Lokale Acts, Events und besondere Orte – alles auf einer Karte.",
-    hero_chip_fallback: "Live Daten + Fallback",
+    hero_chip_fallback: "Live Musik entdecken",
     hero_chip_vibe: "Beach, City & Lifestyle",
     hero_search_label: "Suche",
     hero_search_placeholder: "Ort, Event oder Genre suchen",
@@ -227,7 +232,7 @@ const I18N = {
   en: {
     hero_title: "Find where music truly happens.",
     hero_subtitle: "Local artists, events and unique places – all on one map.",
-    hero_chip_fallback: "Live data + fallback",
+    hero_chip_fallback: "Discover live music",
     hero_chip_vibe: "Beach, City & Lifestyle",
     hero_search_label: "Search",
     hero_search_placeholder: "Search city, event or genre",
@@ -348,7 +353,7 @@ const I18N = {
   es: {
     hero_title: "Descubre dónde realmente suena la música.",
     hero_subtitle: "Artistas locales, eventos y lugares únicos – todo en un solo mapa.",
-    hero_chip_fallback: "Datos en vivo + fallback",
+    hero_chip_fallback: "Descubre música en vivo",
     hero_chip_vibe: "Beach, City & Lifestyle",
     hero_search_label: "Buscar",
     hero_search_placeholder: "Buscar ciudad, evento o género",
@@ -724,10 +729,17 @@ function isApprovedEvent(event) {
 function normalizeEvent(event, index) {
   const lat = Number(event.lat ?? event.latitude ?? null);
   const lng = Number(event.lng ?? event.longitude ?? null);
+  const address = String(event.address || event.street || "").trim();
+  const geocodingQuery = String(event.geocoding_query || "").trim();
+  const composedAddress = [event.location_name, address, event.city, event.country]
+    .filter(Boolean)
+    .join(", ");
+  const normalizedGeocodingQuery = geocodingQuery || composedAddress;
   return {
     id: String(event.id ?? `event-${index}`),
     name: event.name || event.title || "Untitled Event",
     location_name: event.location_name || event.location || "Unknown venue",
+    address: event.address || event.street || "",
     city: event.city || event.location_city || "",
     event_date: event.event_date || event.date || "",
     event_time: event.event_time || event.time || "",
@@ -735,10 +747,12 @@ function normalizeEvent(event, index) {
     price_text: event.price_text || event.price || t("details_free"),
     description: event.description || t("details_no_description"),
     image_url: event.image_url || event.image || "",
+    address,
     status: normalizeStatus(event.status),
     contact_email: event.contact_email || "",
     submitted_by: event.submitted_by || "",
     verification_notes: event.verification_notes || "",
+    geocoding_query: normalizedGeocodingQuery || "",
     lat: Number.isFinite(lat) ? lat : null,
     lng: Number.isFinite(lng) ? lng : null
   };
@@ -790,9 +804,7 @@ function clearEventForm() {
 
 function buildInsertPayload(payload) {
   // Address is collected now; geocoding can later resolve this into coordinates.
-  const geocoding_query = [payload.location_name, payload.address, payload.city, payload.country]
-    .filter(Boolean)
-    .join(", ");
+  const geocoding_query = buildGeocodingQuery(payload);
 
   return {
     name: payload.name,
@@ -843,15 +855,26 @@ async function geocodeAddressWithNominatim(query) {
   return { lat, lng };
 }
 
-async function resolveCoordinatesForPayload(payload) {
-  if (!ENABLE_AUTO_GEOCODING) return payload;
-  const query = [payload.location_name, payload.address, payload.city, payload.country]
+function buildGeocodingQuery(payload) {
+  return [payload.location_name, payload.address, payload.city, payload.country]
     .filter(Boolean)
     .join(", ");
+}
+
+const GEOCODING_PROVIDERS = {
+  nominatim: geocodeAddressWithNominatim
+};
+
+async function resolveCoordinatesForPayload(payload) {
+  if (!ENABLE_AUTO_GEOCODING) return payload;
+  const query = buildGeocodingQuery(payload);
   if (!query) return payload;
 
+  const provider = GEOCODING_PROVIDERS[GEOCODING_PROVIDER];
+  if (!provider) return payload;
+
   try {
-    const coordinates = await geocodeAddressWithNominatim(query);
+    const coordinates = await provider(query);
     if (!coordinates) return payload;
     return {
       ...payload,
@@ -961,8 +984,15 @@ function formatPrice(priceText) {
   return String(priceText);
 }
 
+function formatEventPlace(event) {
+  const parts = [event.location_name, event.address, event.city].filter(Boolean);
+  return parts.length ? parts.join(", ") : "-";
+}
+
 function eventSearchText(event) {
-  return [event.name, event.location_name, event.city, event.genre, event.description].join(" ").toLowerCase();
+  return [event.name, event.location_name, event.address, event.city, event.genre, event.description]
+    .join(" ")
+    .toLowerCase();
 }
 
 function sourceLabel() {
@@ -1116,7 +1146,7 @@ function renderModerationPanel() {
     card.innerHTML = `
       <h4>${event.name}</h4>
       <div class="admin-card__meta">
-        <span>${event.location_name}${event.city ? `, ${event.city}` : ""}</span>
+        <span>${formatEventPlace(event)}</span>
         <span>${formatDateTime(event)}</span>
         <span>${event.genre || "-"}</span>
         <span>${t("admin_submitted_by")}: ${event.submitted_by || "-"}</span>
@@ -1275,7 +1305,7 @@ function createEventCard(event) {
       <span>${event.genre || "-"}</span>
     </div>
     <div class="event-card__meta">
-      <span>${event.location_name}${event.city ? `, ${event.city}` : ""}</span>
+      <span>${formatEventPlace(event)}</span>
       <span>${formatDateTime(event)}</span>
       <span>${formatPrice(event.price_text)}</span>
     </div>
@@ -1331,10 +1361,11 @@ function initMap() {
 }
 
 function markerPopupHtml(event) {
+  const locationLine = [event.location_name, event.address, event.city].filter(Boolean).join(", ");
   return `
     <div class="popup">
       <strong>${event.name}</strong><br>
-      <span>${event.location_name}${event.city ? `, ${event.city}` : ""}</span><br>
+      <span>${locationLine || "-"}</span><br>
       <span>${formatDateTime(event)}</span><br>
       <span>${event.genre || "-"} - ${formatPrice(event.price_text)}</span>
     </div>
@@ -1376,11 +1407,12 @@ function renderEventDetails(event) {
   }
 
   dom.eventDetails.className = "event-details";
+  const locationLine = [event.location_name, event.address, event.city].filter(Boolean).join(", ");
   dom.eventDetails.innerHTML = `
     ${event.image_url ? `<img class="event-details__image" src="${event.image_url}" alt="${event.name}" loading="lazy">` : ""}
     <h4>${event.name}</h4>
     <ul>
-      <li><strong>${t("details_location")}:</strong> ${event.location_name}${event.city ? `, ${event.city}` : ""}</li>
+      <li><strong>${t("details_location")}:</strong> ${locationLine || "-"}</li>
       <li><strong>${t("details_date")}:</strong> ${formatDateTime(event)}</li>
       <li><strong>${t("details_genre")}:</strong> ${event.genre || "-"}</li>
       <li><strong>${t("details_price")}:</strong> ${formatPrice(event.price_text)}</li>
