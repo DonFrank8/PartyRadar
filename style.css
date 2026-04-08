@@ -371,9 +371,14 @@ body {
   color: #ffe1ad;
 }
 
-.add-event-form,
-.panel--add-event {
-  display: none;
+.add-event-form {
+  display: grid;
+}
+
+#languageSwitch {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .panel__heading {
