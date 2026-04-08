@@ -55,6 +55,14 @@ If `mapbox` is selected but no token is configured, geocoding falls back gracefu
 2. Paste and run `supabase-rls.sql`
 3. Ensure moderator users have `app_metadata.role = 'admin'`
 
+### If event submit fails with RLS
+
+If you see `new row violates row-level security policy for table "events"`:
+
+- make sure the **insert policy** exists exactly as in `supabase-rls.sql`
+- then re-run the SQL script to refresh policies
+- in PartyRadar, event submit inserts as `status = 'pending'` and does not require reading back the inserted row
+
 ### Optional: Edge Function moderation endpoint
 
 For even stronger isolation, add an Edge Function that performs moderation server-side:
