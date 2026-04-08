@@ -26,6 +26,14 @@ with check (
   status = 'pending'
 );
 
+-- 4b) Optional: anonymous users can read their own fresh pending row right after insert
+-- Keep disabled unless your frontend requires `insert(...).select(...)` responses.
+-- create policy "Anonymous can read pending events"
+-- on public.events
+-- for select
+-- to anon, authenticated
+-- using (status = 'pending');
+
 -- 5) Only authenticated admins can moderate (update status/notes)
 -- Requires app_metadata.role = 'admin' in auth.users JWT payload.
 create policy "Admins can moderate events via role"

@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://dwyhpirtbjfmohcnhdak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__H_WNdy1NIfoQbQfyNILKQ_Qb8wQfgn";
-const APP_BUILD_VERSION = "2026.04.08-11";
+const APP_BUILD_VERSION = "2026.04.08-12";
 const ADMIN_REQUIRED_ROLE = "admin";
 const USE_MODERATION_EDGE_FUNCTION = false;
 const MODERATION_EDGE_FUNCTION_NAME = "moderate-event";
@@ -1004,8 +1004,10 @@ function extractMissingColumnFromSupabaseError(error) {
 
 async function insertEventWithSchemaFallback(client, payload) {
   const tableName = state.debug.tableName || "events";
-  const tryInsert = async (row) =>
-    client.from(tableName).insert([row]).select("*").single();
+  // Avoid returning inserted rows here because strict SELECT RLS policies
+  // (e.g. only approved events) can reject the return payload even when
+  // the INSERT itself is valid.
+  const tryInsert = async (row) => client.from(tableName).insert([row]);
   const fallbackPayload = { ...payload };
   const removedColumns = new Set();
   const schemaFallbackPriority = [
