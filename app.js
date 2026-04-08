@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://dwyhpirtbjfmohcnhdak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__H_WNdy1NIfoQbQfyNILKQ_Qb8wQfgn";
-const APP_BUILD_VERSION = "2026.04.08-10";
+const APP_BUILD_VERSION = "2026.04.08-11";
 const ADMIN_REQUIRED_ROLE = "admin";
 const USE_MODERATION_EDGE_FUNCTION = false;
 const MODERATION_EDGE_FUNCTION_NAME = "moderate-event";
@@ -969,17 +969,35 @@ async function resolveCoordinatesForPayload(payload) {
   }
 }
 
-function extractMissingColumnFromSupabaseError(error) {
-  const errorText = [error?.message, error?.details, error?.hint]
+function supabaseErrorText(error) {
+  return [error?.message, error?.details, error?.hint]
     .filter(Boolean)
     .join(" | ");
+}
+
+function normalizeColumnName(rawColumn) {
+  if (!rawColumn) return "";
+  const cleaned = String(rawColumn).replace(/["']/g, "").trim();
+  if (!cleaned) return "";
+  const pathParts = cleaned.split(".");
+  return pathParts[pathParts.length - 1].trim();
+}
+
+function extractMissingColumnFromSupabaseError(error) {
+  const errorText = supabaseErrorText(error);
   if (!errorText) return null;
 
-  const schemaCacheMatch = errorText.match(/could not find the ['"]([^'"]+)['"] column/i);
-  if (schemaCacheMatch?.[1]) return schemaCacheMatch[1];
+  const matchers = [
+    /could not find the ['"]([^'"]+)['"] column/i,
+    /could not find column ['"]([^'"]+)['"]/i,
+    /column ["']([^"']+)["'] does not exist/i
+  ];
 
-  const missingColumnMatch = errorText.match(/column ["']([^"']+)["'] does not exist/i);
-  if (missingColumnMatch?.[1]) return missingColumnMatch[1];
+  for (const pattern of matchers) {
+    const match = errorText.match(pattern);
+    const normalized = normalizeColumnName(match?.[1]);
+    if (normalized) return normalized;
+  }
 
   return null;
 }
@@ -990,6 +1008,18 @@ async function insertEventWithSchemaFallback(client, payload) {
     client.from(tableName).insert([row]).select("*").single();
   const fallbackPayload = { ...payload };
   const removedColumns = new Set();
+  const schemaFallbackPriority = [
+    "address",
+    "geocoding_query",
+    "verification_notes",
+    "submitted_by",
+    "contact_email",
+    "status",
+    "country",
+    "event_time",
+    "price_text",
+    "description"
+  ];
   let lastResult = null;
   const maxAttempts = Object.keys(fallbackPayload).length + 1;
 
@@ -998,7 +1028,13 @@ async function insertEventWithSchemaFallback(client, payload) {
     lastResult = result;
     if (!result.error) return result;
 
-    const missingColumn = extractMissingColumnFromSupabaseError(result.error);
+    const errorText = supabaseErrorText(result.error);
+    let missingColumn = extractMissingColumnFromSupabaseError(result.error);
+    if (!missingColumn && /schema cache/i.test(errorText)) {
+      missingColumn = schemaFallbackPriority.find(
+        (key) => Object.prototype.hasOwnProperty.call(fallbackPayload, key) && !removedColumns.has(key)
+      );
+    }
     if (!missingColumn) return result;
     if (!Object.prototype.hasOwnProperty.call(fallbackPayload, missingColumn)) return result;
     if (removedColumns.has(missingColumn)) return result;
