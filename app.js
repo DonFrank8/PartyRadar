@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://dwyhpirtbjfmohcnhdak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__H_WNdy1NIfoQbQfyNILKQ_Qb8wQfgn";
-const APP_BUILD_VERSION = "2026.04.08-9";
+const APP_BUILD_VERSION = "2026.04.08-10";
 const ADMIN_REQUIRED_ROLE = "admin";
 const USE_MODERATION_EDGE_FUNCTION = false;
 const MODERATION_EDGE_FUNCTION_NAME = "moderate-event";
@@ -969,39 +969,46 @@ async function resolveCoordinatesForPayload(payload) {
   }
 }
 
+function extractMissingColumnFromSupabaseError(error) {
+  const errorText = [error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(" | ");
+  if (!errorText) return null;
+
+  const schemaCacheMatch = errorText.match(/could not find the ['"]([^'"]+)['"] column/i);
+  if (schemaCacheMatch?.[1]) return schemaCacheMatch[1];
+
+  const missingColumnMatch = errorText.match(/column ["']([^"']+)["'] does not exist/i);
+  if (missingColumnMatch?.[1]) return missingColumnMatch[1];
+
+  return null;
+}
+
 async function insertEventWithSchemaFallback(client, payload) {
   const tableName = state.debug.tableName || "events";
   const tryInsert = async (row) =>
     client.from(tableName).insert([row]).select("*").single();
-
-  const primary = await tryInsert(payload);
-  if (!primary.error) return primary;
-
-  const errorMessage = String(primary.error.message || "");
-  const missingAddressColumn =
-    /could not find the 'address' column/i.test(errorMessage) ||
-    /column ["']address["'] does not exist/i.test(errorMessage);
-  const missingGeocodingQueryColumn =
-    /could not find the 'geocoding_query' column/i.test(errorMessage) ||
-    /column ["']geocoding_query["'] does not exist/i.test(errorMessage);
-
-  if (!missingAddressColumn && !missingGeocodingQueryColumn) return primary;
-
   const fallbackPayload = { ...payload };
-  if (missingAddressColumn) {
-    delete fallbackPayload.address;
-  }
-  if (missingAddressColumn || missingGeocodingQueryColumn) {
-    delete fallbackPayload.geocoding_query;
-  }
-  const fallback = await tryInsert(fallbackPayload);
+  const removedColumns = new Set();
+  let lastResult = null;
+  const maxAttempts = Object.keys(fallbackPayload).length + 1;
 
-  return fallback.error
-    ? primary
-    : {
-        data: fallback.data,
-        error: null
-      };
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = await tryInsert(fallbackPayload);
+    lastResult = result;
+    if (!result.error) return result;
+
+    const missingColumn = extractMissingColumnFromSupabaseError(result.error);
+    if (!missingColumn) return result;
+    if (!Object.prototype.hasOwnProperty.call(fallbackPayload, missingColumn)) return result;
+    if (removedColumns.has(missingColumn)) return result;
+
+    removedColumns.add(missingColumn);
+    delete fallbackPayload[missingColumn];
+    console.warn(`[PartyRadar Debug] Retrying insert without missing column: ${missingColumn}`);
+  }
+
+  return lastResult || { data: null, error: { message: "Insert failed" } };
 }
 
 function splitGenres(value) {
