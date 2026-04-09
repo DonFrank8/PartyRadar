@@ -619,7 +619,6 @@ const dom = {
   heroDateFilter: document.getElementById("heroDateFilter"),
   submitModal: document.getElementById("submitModal"),
   openSubmitModal: document.getElementById("openSubmitModal"),
-  openAdminModeButton: document.getElementById("openAdminModeButton"),
   closeSubmitModal: document.getElementById("closeSubmitModal"),
   status: document.getElementById("status"),
   eventList: document.getElementById("eventList"),
@@ -1559,10 +1558,6 @@ function updateUrlFromFilters() {
   window.history.replaceState({}, "", nextUrl);
 }
 
-function openAdminModeQuickAccess() {
-  window.location.href = "./admin.html";
-}
-
 function supabaseClient() {
   return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
@@ -2274,11 +2269,6 @@ function bindEvents() {
     dom.openSubmitModal.addEventListener("click", () => {
       setFormFeedback("");
       openSubmitModal();
-    });
-  }
-  if (dom.openAdminModeButton) {
-    dom.openAdminModeButton.addEventListener("click", () => {
-      openAdminModeQuickAccess();
     });
   }
   if (dom.closeSubmitModal) {

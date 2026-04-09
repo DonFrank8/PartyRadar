@@ -201,7 +201,7 @@ body.body--modal-open {
 .hero__top-actions {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0;
 }
 
 .hero__brand {
@@ -395,22 +395,6 @@ body.body--modal-open {
   background: linear-gradient(135deg, rgba(156, 91, 255, 0.42), rgba(50, 167, 255, 0.38));
   color: #fff;
   box-shadow: 0 0 0 1px rgba(160, 184, 255, 0.45) inset;
-}
-
-.hero__admin-quick {
-  min-height: 30px;
-  padding: 0.28rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid rgba(174, 199, 255, 0.46);
-  background: rgba(8, 10, 19, 0.68);
-  color: #dce6ff;
-  font-size: 0.76rem;
-  letter-spacing: 0.02em;
-}
-
-.hero__admin-quick:hover {
-  border-color: rgba(255, 138, 61, 0.7);
-  box-shadow: 0 0 20px rgba(255, 138, 61, 0.18);
 }
 
 .auth-controls {
@@ -1680,13 +1664,7 @@ body.body--modal-open {
   }
 
   .hero__top-actions {
-    gap: 0.36rem;
-  }
-
-  .hero__admin-quick {
-    min-height: 28px;
-    padding: 0.2rem 0.58rem;
-    font-size: 0.72rem;
+    gap: 0;
   }
 
   .language-switch {
