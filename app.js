@@ -1852,12 +1852,29 @@ function renderEventDetails(event) {
     return;
   }
 
-  dom.eventDetails.className = "event-details";
-  const locationLine = [event.location_name, event.address, event.city].filter(Boolean).join(", ");
+  dom.eventDetails.className = "event-details event-details--filled";
+  const locationName = String(event.location_name || "").trim();
+  const addressLine = [event.address, event.postal_code, event.city, event.country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  const fallbackLocationLine = [locationName, event.address, event.city].filter(Boolean).join(", ");
   const navigationUrl = buildNavigationUrl(event);
   dom.eventDetails.innerHTML = `
-    ${event.image_url ? `<img class="event-details__image" src="${event.image_url}" alt="${event.name}" loading="lazy">` : ""}
-    <h4>${event.name}</h4>
+    <div class="event-details__media">
+      ${
+        event.image_url
+          ? `<img class="event-details__image" src="${event.image_url}" alt="${event.name}" loading="lazy">`
+          : `<div class="event-details__image-fallback" aria-hidden="true"><span>🎵</span></div>`
+      }
+    </div>
+    <div class="event-details__header">
+      <h4>${event.name}</h4>
+      <div class="event-details__badges">
+        <span class="event-details__badge">${event.genre || "-"}</span>
+        <span class="event-details__badge">${formatDateTime(event)}</span>
+      </div>
+    </div>
     <div class="event-details__actions event-details__actions--top">
       ${
         navigationUrl
@@ -1882,13 +1899,21 @@ function renderEventDetails(event) {
       `
       }
     </div>
-    <ul>
-      <li><strong>${t("details_location")}:</strong> ${locationLine || "-"}</li>
-      <li><strong>${t("details_date")}:</strong> ${formatDateTime(event)}</li>
-      <li><strong>${t("details_genre")}:</strong> ${event.genre || "-"}</li>
-      <li><strong>${t("details_price")}:</strong> ${formatPrice(event.price_text)}</li>
-    </ul>
-    <p>${event.description || t("details_no_description")}</p>
+    <div class="event-details__grid">
+      <article class="event-details__card">
+        <h5>${t("details_location")}</h5>
+        <p>${locationName || fallbackLocationLine || "-"}</p>
+        <p class="event-details__muted">${addressLine || "-"}</p>
+      </article>
+      <article class="event-details__card">
+        <h5>${t("details_price")}</h5>
+        <p>${formatPrice(event.price_text)}</p>
+      </article>
+    </div>
+    <article class="event-details__card event-details__card--description">
+      <h5>${t("form_label_description")}</h5>
+      <p>${event.description || t("details_no_description")}</p>
+    </article>
   `;
 }
 
