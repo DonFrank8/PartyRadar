@@ -835,9 +835,16 @@ function isApprovedEvent(event) {
   return normalizeStatus(event.status) === "approved";
 }
 
+function parseCoordinateValue(rawValue) {
+  if (rawValue === null || rawValue === undefined || rawValue === "") return null;
+  const normalized = String(rawValue).trim().replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function normalizeEvent(event, index) {
-  const lat = Number(event.lat ?? event.latitude ?? null);
-  const lng = Number(event.lng ?? event.longitude ?? null);
+  const lat = parseCoordinateValue(event.lat ?? event.latitude ?? event.latitude_decimal ?? null);
+  const lng = parseCoordinateValue(event.lng ?? event.longitude ?? event.longitude_decimal ?? null);
   const address = String(event.address || event.street || "").trim();
   const postal_code = String(event.postal_code || event.zip || "").trim();
   const geocodingQuery = String(event.geocoding_query || "").trim();
@@ -865,8 +872,8 @@ function normalizeEvent(event, index) {
     submitted_by: event.submitted_by || "",
     verification_notes: event.verification_notes || "",
     geocoding_query: normalizedGeocodingQuery || "",
-    lat: Number.isFinite(lat) ? lat : null,
-    lng: Number.isFinite(lng) ? lng : null
+    lat,
+    lng
   };
 }
 
@@ -1331,7 +1338,14 @@ function formatEventPlace(event) {
 }
 
 function buildNavigationAddressQuery(event) {
-  return [event.address, event.city, event.country]
+  const strictAddressQuery = [event.address, event.city, event.country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  if (strictAddressQuery) return strictAddressQuery;
+
+  // Fallback for legacy records where only geocoding_query/postal data exists.
+  return [event.geocoding_query, event.address, event.postal_code, event.city, event.country, event.location_name]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(", ");
@@ -1830,15 +1844,28 @@ function renderEventDetails(event) {
     </ul>
     <p>${event.description || t("details_no_description")}</p>
     <div class="event-details__actions">
+      ${
+        navigationUrl
+          ? `
+      <a
+        class="button-secondary button-secondary--primary button-secondary--navigate"
+        href="${navigationUrl}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        ${t("details_navigate")}
+      </a>
+      `
+          : `
       <button
         type="button"
         class="button-secondary button-secondary--primary button-secondary--navigate"
-        data-action="navigate-event"
-        data-event-id="${event.id}"
-        ${navigationUrl ? "" : "disabled"}
+        disabled
       >
         ${t("details_navigate")}
       </button>
+      `
+      }
     </div>
   `;
 }
@@ -2110,21 +2137,6 @@ function bindEvents() {
 
   if (dom.eventForm) {
     dom.eventForm.addEventListener("submit", handleCreateEventSubmit);
-  }
-  if (dom.eventDetails) {
-    dom.eventDetails.addEventListener("click", (event) => {
-      const button = event.target.closest("button[data-action='navigate-event']");
-      if (!button) return;
-
-      const eventId = button.dataset.eventId;
-      if (!eventId) return;
-      const selectedEvent =
-        state.filteredEvents.find((item) => item.id === eventId) ||
-        state.allEvents.find((item) => item.id === eventId);
-      if (!selectedEvent) return;
-
-      openNavigationForEvent(selectedEvent);
-    });
   }
   if (dom.adminAuthForm) {
     dom.adminAuthForm.addEventListener("submit", async (event) => {
