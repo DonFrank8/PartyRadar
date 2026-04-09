@@ -649,6 +649,26 @@ body.body--modal-open {
   line-height: 1.35;
 }
 
+.popup__route-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.45rem;
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 122, 155, 0.74);
+  background: linear-gradient(135deg, rgba(255, 79, 149, 0.2), rgba(255, 159, 85, 0.2));
+  color: #fff;
+  font-size: 0.79rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.popup__route-link:hover {
+  border-color: rgba(255, 169, 117, 0.9);
+}
+
 .event-details {
   padding: 0.95rem;
 }

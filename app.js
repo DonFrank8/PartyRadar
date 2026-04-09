@@ -1767,12 +1767,17 @@ function initMap() {
 
 function markerPopupHtml(event) {
   const locationLine = [event.location_name, event.address, event.city].filter(Boolean).join(", ");
+  const navigationUrl = buildNavigationUrl(event);
+  const navigationLink = navigationUrl
+    ? `<a class="popup__route-link" href="${navigationUrl}" target="_blank" rel="noopener noreferrer">${t("details_navigate")}</a>`
+    : "";
   return `
     <div class="popup">
       <strong>${event.name}</strong><br>
       <span>${locationLine || "-"}</span><br>
       <span>${formatDateTime(event)}</span><br>
       <span>${event.genre || "-"} - ${formatPrice(event.price_text)}</span>
+      ${navigationLink}
     </div>
   `;
 }
