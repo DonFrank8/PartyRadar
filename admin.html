@@ -6,10 +6,10 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>VIBEON Admin | Event Moderation Studio</title>
+  <title>VIBEON Admin | Moderation & Curation</title>
   <meta
     name="description"
-    content="VIBEON Admin Studio zur Prüfung, Freigabe und Ablehnung von Event-Einreichungen."
+    content="VIBEON Admin für Moderation, Qualitätssicherung und Curation von Live-Events und Locations."
   >
   <script>
     (function () {
@@ -31,11 +31,11 @@
           <span class="brand-logo brand-logo--icon" aria-hidden="true"></span>
           <p class="admin-header__eyebrow">VIBEON</p>
         </div>
-        <h1>Admin Studio</h1>
-        <p class="admin-header__subtitle">Moderation, Qualitätssicherung und Curation für Music, Beach und Lifestyle Events.</p>
+        <h1>VIBEON Admin</h1>
+        <p class="admin-header__subtitle">Moderation, Qualitätssicherung und Curation für Live-Musik, Events und Locations.</p>
       </div>
       <div class="admin-header__actions">
-        <a class="button button--ghost" href="./index.html">Zur VIBEON Explore Seite</a>
+        <a class="button button--ghost" href="./index.html">Zur VIBEON Discover Seite</a>
         <button id="adminHeaderSignOutButton" type="button" class="button button--ghost" hidden>
           Abmelden
         </button>
@@ -65,7 +65,7 @@
       <section class="card card--toolbar">
         <div class="toolbar-top">
           <div>
-            <h2>Event Moderation Queue</h2>
+            <h2>Moderation Queue</h2>
             <p id="adminSessionInfo" class="card__intro">-</p>
           </div>
           <button id="adminSignOutButton" type="button" class="button button--ghost">Abmelden</button>
@@ -76,20 +76,20 @@
             Alle <span id="countAll" class="count-badge">0</span>
           </button>
           <button type="button" class="status-tab status-tab--pending" data-status-filter="pending">
-            Pending <span id="countPending" class="count-badge">0</span>
+            Ausstehend <span id="countPending" class="count-badge">0</span>
           </button>
           <button type="button" class="status-tab status-tab--approved" data-status-filter="approved">
-            Approved <span id="countApproved" class="count-badge">0</span>
+            Freigegeben <span id="countApproved" class="count-badge">0</span>
           </button>
           <button type="button" class="status-tab status-tab--rejected" data-status-filter="rejected">
-            Rejected <span id="countRejected" class="count-badge">0</span>
+            Abgelehnt <span id="countRejected" class="count-badge">0</span>
           </button>
         </div>
 
         <form id="adminFiltersForm" class="filter-grid" autocomplete="off">
           <label class="field">
             <span>Suche</span>
-            <input id="filterSearch" type="search" placeholder="Name, Location, Adresse, Beschreibung...">
+            <input id="filterSearch" type="search" placeholder="Suche Event, Venue, Stadt oder Beschreibung...">
           </label>
           <label class="field">
             <span>Stadt</span>
@@ -107,9 +107,9 @@
             <span>Status</span>
             <select id="filterStatus">
               <option value="">Alle</option>
-              <option value="pending">pending</option>
-              <option value="approved">approved</option>
-              <option value="rejected">rejected</option>
+              <option value="pending">ausstehend</option>
+              <option value="approved">freigegeben</option>
+              <option value="rejected">abgelehnt</option>
             </select>
           </label>
           <button id="resetFiltersButton" type="button" class="button button--ghost">Filter zurücksetzen</button>

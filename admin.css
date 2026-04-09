@@ -61,6 +61,15 @@ body {
   padding: 0.95rem 1rem;
 }
 
+.admin-header__inner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 .admin-header__brand {
   display: inline-flex;
   align-items: center;
@@ -139,6 +148,15 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.8rem;
+}
+
+.card--toolbar {
+  position: sticky;
+  top: 0.58rem;
+  z-index: 8;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+    var(--surface);
 }
 
 .button,
@@ -311,6 +329,17 @@ body {
   padding: 0.8rem;
   display: grid;
   gap: 0.58rem;
+  position: relative;
+}
+
+.event-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(90deg, var(--purple), var(--blue), var(--sunset));
+  opacity: 0.9;
 }
 
 .event-card__head {
@@ -413,6 +442,10 @@ body {
   flex-wrap: wrap;
 }
 
+.card-actions .button-secondary {
+  flex: 1 1 140px;
+}
+
 .empty-state {
   border: 1px dashed rgba(139, 164, 255, 0.42);
   border-radius: 14px;
@@ -451,5 +484,55 @@ body {
   .toolbar-top {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .admin-shell {
+    padding: 0 0.62rem 0.9rem;
+  }
+
+  .card {
+    padding: 0.82rem;
+    border-radius: 16px;
+  }
+
+  .card--toolbar {
+    top: 0.42rem;
+  }
+
+  .status-tabs {
+    gap: 0.36rem;
+  }
+
+  .status-tab {
+    flex: 1 1 calc(50% - 0.18rem);
+    min-height: 34px;
+    padding: 0.32rem 0.62rem;
+    font-size: 0.75rem;
+  }
+
+  .count-badge {
+    min-width: 20px;
+    min-height: 20px;
+    font-size: 0.68rem;
+  }
+
+  .event-card {
+    padding: 0.7rem;
+    border-radius: 14px;
+  }
+
+  .event-card__image {
+    max-height: 186px;
+  }
+
+  .card-actions .button-secondary {
+    flex-basis: calc(50% - 0.25rem);
+    min-height: 34px;
+    font-size: 0.74rem;
+  }
+
+  .mini-toggle {
+    flex: 1 1 calc(50% - 0.25rem);
+    justify-content: center;
   }
 }
