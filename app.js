@@ -13,6 +13,7 @@ const EVENT_IMAGES_BUCKET = "event-images";
 const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EVENT_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DEFAULT_NAVIGATION_PROVIDER = "google";
+const SUBMITTER_PROFILE_STORAGE_KEY = "vibeon.submitterProfile.v1";
 
 window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
 
@@ -944,6 +945,54 @@ function clearEventForm() {
   if (!dom.eventForm) return;
   dom.eventForm.reset();
   if (dom.formMainImage) dom.formMainImage.value = "";
+  // Keep fields empty by default unless user explicitly opted in to remember details.
+  applySavedSubmitterProfile();
+}
+
+function readSavedSubmitterProfile() {
+  try {
+    const raw = window.localStorage.getItem(SUBMITTER_PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const remember = Boolean(parsed.remember);
+    const contact_email = String(parsed.contact_email || "").trim();
+    const submitted_by = String(parsed.submitted_by || "").trim();
+    if (!remember) return null;
+    return {
+      remember,
+      contact_email,
+      submitted_by
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function applySavedSubmitterProfile() {
+  const profile = readSavedSubmitterProfile();
+  if (!profile) return;
+  if (dom.formContactEmail && profile.contact_email) dom.formContactEmail.value = profile.contact_email;
+  if (dom.formSubmittedBy && profile.submitted_by) dom.formSubmittedBy.value = profile.submitted_by;
+}
+
+function persistSubmitterProfile(payload) {
+  try {
+    const remember =
+      window.confirm("Kontakt-E-Mail und Name auf diesem Gerät für künftige Einreichungen speichern?");
+    if (!remember) {
+      window.localStorage.removeItem(SUBMITTER_PROFILE_STORAGE_KEY);
+      return;
+    }
+    const profile = {
+      remember: true,
+      contact_email: payload.contact_email || "",
+      submitted_by: payload.submitted_by || ""
+    };
+    window.localStorage.setItem(SUBMITTER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  } catch (error) {
+    // Ignore storage errors to keep submission flow unaffected.
+  }
 }
 
 function buildInsertPayload(payload) {
@@ -2052,6 +2101,7 @@ async function handleCreateEventSubmit(submitEvent) {
     }
 
     clearEventForm();
+    persistSubmitterProfile(payload);
     setFormFeedback(t("form_success"), "success");
     await reloadEventsAndRender();
     window.setTimeout(closeSubmitModal, 1800);
