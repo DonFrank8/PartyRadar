@@ -885,14 +885,13 @@ function validateFormPayload(payload) {
   if (!emailRegex.test(payload.contact_email)) {
     return { valid: false, message: t("form_error_email") };
   }
-  if (!payload.main_image) {
-    return { valid: false, message: t("form_error_image_required") };
-  }
-  if (!ALLOWED_EVENT_IMAGE_MIME_TYPES.has(payload.main_image.type)) {
-    return { valid: false, message: t("form_error_image_type") };
-  }
-  if (payload.main_image.size > MAX_EVENT_IMAGE_BYTES) {
-    return { valid: false, message: t("form_error_image_size") };
+  if (payload.main_image) {
+    if (!ALLOWED_EVENT_IMAGE_MIME_TYPES.has(payload.main_image.type)) {
+      return { valid: false, message: t("form_error_image_type") };
+    }
+    if (payload.main_image.size > MAX_EVENT_IMAGE_BYTES) {
+      return { valid: false, message: t("form_error_image_size") };
+    }
   }
   return { valid: true, message: "" };
 }
@@ -1845,17 +1844,19 @@ async function handleCreateEventSubmit(submitEvent) {
       setFormFeedback(t("form_error_geocoding_failed"), "error");
       return;
     }
-    try {
-      const uploadResult = await uploadEventImage(client, payload.main_image);
-      uploadedImagePath = uploadResult.path;
-      payloadWithCoordinates = {
-        ...payloadWithCoordinates,
-        image_url: uploadResult.publicUrl
-      };
-    } catch (uploadError) {
-      console.error("Image upload failed:", uploadError);
-      setFormFeedback(t("form_error_image_upload"), "error");
-      return;
+    if (payload.main_image) {
+      try {
+        const uploadResult = await uploadEventImage(client, payload.main_image);
+        uploadedImagePath = uploadResult.path;
+        payloadWithCoordinates = {
+          ...payloadWithCoordinates,
+          image_url: uploadResult.publicUrl
+        };
+      } catch (uploadError) {
+        console.error("Image upload failed:", uploadError);
+        setFormFeedback(t("form_error_image_upload"), "error");
+        return;
+      }
     }
     const insertPayload = buildInsertPayload(payloadWithCoordinates);
     const { data, error } = await insertEventWithSchemaFallback(client, insertPayload);
