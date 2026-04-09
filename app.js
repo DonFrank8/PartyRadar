@@ -1,9 +1,5 @@
 const SUPABASE_URL = "https://dwyhpirtbjfmohcnhdak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__H_WNdy1NIfoQbQfyNILKQ_Qb8wQfgn";
-const APP_BUILD_VERSION = "2026.04.08-14";
-const ADMIN_REQUIRED_ROLE = "admin";
-const USE_MODERATION_EDGE_FUNCTION = false;
-const MODERATION_EDGE_FUNCTION_NAME = "moderate-event";
 const ENABLE_AUTO_GEOCODING = true;
 const GEOCODING_PROVIDER = "nominatim";
 const GEOCODING_MIN_INTERVAL_MS = 850;
@@ -14,7 +10,7 @@ const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EVENT_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DEFAULT_NAVIGATION_PROVIDER = "google";
 
-window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
+window.PARTYRADAR_CACHE_BUSTER = window.PARTYRADAR_CACHE_BUSTER || Date.now();
 
 const DEFAULT_CENTER = [51.1657, 10.4515];
 const DEFAULT_ZOOM = 6;
@@ -137,11 +133,10 @@ const I18N = {
     hero_title: "Finde, wo Musik wirklich passiert.",
     hero_subtitle: "Lokale Acts, Events und besondere Orte – alles auf einer Karte.",
     hero_chip_fallback: "Live Musik entdecken",
-    hero_chip_vibe: "Beach, City & Lifestyle",
-    hero_search_label: "Suche",
-    hero_search_placeholder: "Ort, Event oder Genre suchen",
-    discover_title: "Events entdecken",
-    discover_subtitle: "Filtere nach Suche, Stadt, Datum und Genres.",
+    hero_chip_curated: "Kuratiert fuer Sommernaechte & City-Vibes",
+    hero_chip_quality: "Live, lokal und jede Woche neu",
+    filters_title: "Suche & Filter",
+    filters_subtitle: "Suche nach Event, Stadt und Datum. Verfeinere danach ueber Genres.",
     filter_search: "Suche",
     filter_search_placeholder: "Event, Stadt, Location, Genre...",
     filter_city: "Stadt",
@@ -152,11 +147,6 @@ const I18N = {
     filter_genre_all: "Alle Genres",
     filter_reset: "Alle Filter zurücksetzen",
     list_title: "Event-Liste",
-    debug_title: "Debug-Modus",
-    debug_table: "Tabelle:",
-    debug_loaded: "Supabase Events:",
-    debug_error: "Fehler:",
-    debug_note: "Hinweis:",
     result_count: "{count} Treffer",
     status_loading: "Lade Events aus Supabase...",
     status_connected: "Supabase verbunden. {count} Events geladen.",
@@ -177,14 +167,8 @@ const I18N = {
     details_no_description: "Keine Beschreibung vorhanden.",
     details_time_fallback: "Uhrzeit folgt",
     navigation_unavailable: "Für dieses Event sind keine Navigationsdaten vorhanden.",
-    debug_no_error: "Nein",
-    debug_note_pending: "Noch keine Entscheidung",
-    debug_note_supabase: "Kein Fallback - Daten aus Supabase aktiv",
-    debug_note_no_data: "Keine Daten aus Supabase",
-    debug_note_error: "Supabase Fehler - Demo-Fallback aktiv",
     button_all: "Alle",
     submit_cta: "Event einreichen",
-    admin_quick_access: "Admin",
     form_title: "Event einreichen",
     form_hint: "Dein Event wird eingereicht und vor Veröffentlichung geprüft.",
     form_submit: "Event einreichen",
@@ -199,39 +183,6 @@ const I18N = {
     form_error_image_size: "Das Bild ist zu groß. Maximal 5 MB erlaubt.",
     form_error_image_upload: "Bild-Upload fehlgeschlagen. Bitte erneut versuchen.",
     form_error_image_cleanup: "Hinweis: Das hochgeladene Bild konnte nicht automatisch bereinigt werden.",
-    admin_title: "Moderation",
-    admin_subtitle: "Prüfe eingereichte Events und entscheide über Veröffentlichung.",
-    admin_pending_count: "{count} ausstehend",
-    admin_no_pending: "Keine ausstehenden Einreichungen.",
-    admin_submitted_by: "Eingereicht von",
-    admin_contact: "Kontakt",
-    admin_notes: "Prüfnotiz",
-    admin_notes_placeholder: "Optional: Grund / Hinweis",
-    admin_action_approve: "Freigeben",
-    admin_action_reject: "Ablehnen",
-    admin_update_success_approved: "Event wurde freigegeben.",
-    admin_update_success_rejected: "Event wurde abgelehnt.",
-    admin_update_error: "Moderation konnte nicht gespeichert werden.",
-    admin_geo_label: "Koordinaten",
-    admin_geo_ok: "vorhanden",
-    admin_geo_missing: "fehlt",
-    admin_geo_unknown: "unbekannt",
-    admin_mode_active: "Admin-Modus aktiv: pending Events können moderiert werden.",
-    admin_login_title: "Admin Login",
-    admin_login_hint: "Mit Admin-E-Mail und Passwort anmelden, um Events zu moderieren.",
-    admin_login_email_label: "Admin E-Mail",
-    admin_login_email_placeholder: "z. B. admin@deinedomain.com",
-    admin_login_password_label: "Passwort",
-    admin_login_password_placeholder: "Dein Passwort",
-    admin_login_submit: "Mit Passwort anmelden",
-    admin_logout: "Abmelden",
-    admin_auth_required: "Admin-Authentifizierung erforderlich.",
-    admin_role_required: "Admin-Rolle erforderlich.",
-    admin_logged_in_as: "Angemeldet als {email}",
-    admin_login_sent: "Login-Link wurde versendet. Bitte E-Mail prüfen.",
-    admin_login_success: "Login erfolgreich.",
-    admin_login_error: "Login fehlgeschlagen.",
-    admin_session_error: "Admin-Session konnte nicht geprüft werden.",
     form_error_required: "Bitte Pflichtfelder ausfüllen.",
     form_error_email: "Bitte eine gültige E-Mail-Adresse angeben.",
     form_error_geocode_pending: "Adresse gespeichert. Koordinaten werden bei der Freigabe ergänzt.",
@@ -283,11 +234,10 @@ const I18N = {
     hero_title: "Find where music truly happens.",
     hero_subtitle: "Local artists, events and unique places – all on one map.",
     hero_chip_fallback: "Discover live music",
-    hero_chip_vibe: "Beach, City & Lifestyle",
-    hero_search_label: "Search",
-    hero_search_placeholder: "Search city, event or genre",
-    discover_title: "Discover events",
-    discover_subtitle: "Filter by search, city, date and genres.",
+    hero_chip_curated: "Curated for summer nights and city vibes",
+    hero_chip_quality: "Live, local, and updated every week",
+    filters_title: "Search & filters",
+    filters_subtitle: "Search by event, city, and date, then refine by genre.",
     filter_search: "Search",
     filter_search_placeholder: "Event, city, venue, genre...",
     filter_city: "City",
@@ -298,11 +248,6 @@ const I18N = {
     filter_genre_all: "All genres",
     filter_reset: "Reset all filters",
     list_title: "Event list",
-    debug_title: "Debug mode",
-    debug_table: "Table:",
-    debug_loaded: "Supabase events:",
-    debug_error: "Error:",
-    debug_note: "Note:",
     result_count: "{count} results",
     status_loading: "Loading events from Supabase...",
     status_connected: "Supabase connected. {count} events loaded.",
@@ -323,14 +268,8 @@ const I18N = {
     details_no_description: "No description available.",
     details_time_fallback: "Time TBD",
     navigation_unavailable: "No navigation data is available for this event.",
-    debug_no_error: "No",
-    debug_note_pending: "No decision yet",
-    debug_note_supabase: "No fallback - Supabase data active",
-    debug_note_no_data: "No data from Supabase",
-    debug_note_error: "Supabase error - demo fallback active",
     button_all: "All",
     submit_cta: "Submit event",
-    admin_quick_access: "Admin",
     form_title: "Submit event",
     form_hint: "Your event will be reviewed before publication.",
     form_submit: "Submit event",
@@ -345,39 +284,6 @@ const I18N = {
     form_error_image_size: "The image is too large. Maximum is 5 MB.",
     form_error_image_upload: "Image upload failed. Please try again.",
     form_error_image_cleanup: "Note: Uploaded image could not be cleaned up automatically.",
-    admin_title: "Moderation",
-    admin_subtitle: "Review submitted events and decide publication.",
-    admin_pending_count: "{count} pending",
-    admin_no_pending: "No pending submissions.",
-    admin_submitted_by: "Submitted by",
-    admin_contact: "Contact",
-    admin_notes: "Review note",
-    admin_notes_placeholder: "Optional: reason / note",
-    admin_action_approve: "Approve",
-    admin_action_reject: "Reject",
-    admin_update_success_approved: "Event approved.",
-    admin_update_success_rejected: "Event rejected.",
-    admin_update_error: "Moderation update failed.",
-    admin_geo_label: "Coordinates",
-    admin_geo_ok: "present",
-    admin_geo_missing: "missing",
-    admin_geo_unknown: "unknown",
-    admin_mode_active: "Admin mode active: pending events can be moderated.",
-    admin_login_title: "Admin login",
-    admin_login_hint: "Sign in with admin email and password to moderate events.",
-    admin_login_email_label: "Admin email",
-    admin_login_email_placeholder: "e.g. admin@yourdomain.com",
-    admin_login_password_label: "Password",
-    admin_login_password_placeholder: "Your password",
-    admin_login_submit: "Sign in with password",
-    admin_logout: "Logout",
-    admin_auth_required: "Admin authentication required.",
-    admin_role_required: "Admin role required.",
-    admin_logged_in_as: "Logged in as {email}",
-    admin_login_sent: "Login link sent. Please check your inbox.",
-    admin_login_success: "Login successful.",
-    admin_login_error: "Login failed.",
-    admin_session_error: "Could not validate admin session.",
     form_error_required: "Please fill in required fields.",
     form_error_email: "Please enter a valid email address.",
     form_error_geocode_pending: "Address saved. Coordinates can be added during moderation.",
@@ -429,11 +335,10 @@ const I18N = {
     hero_title: "Descubre dónde realmente suena la música.",
     hero_subtitle: "Artistas locales, eventos y lugares únicos – todo en un solo mapa.",
     hero_chip_fallback: "Descubre música en vivo",
-    hero_chip_vibe: "Beach, City & Lifestyle",
-    hero_search_label: "Buscar",
-    hero_search_placeholder: "Buscar ciudad, evento o género",
-    discover_title: "Descubrir eventos",
-    discover_subtitle: "Filtra por búsqueda, ciudad, fecha y géneros.",
+    hero_chip_curated: "Curado para noches de verano y city vibes",
+    hero_chip_quality: "En vivo, local y actualizado cada semana",
+    filters_title: "Busqueda y filtros",
+    filters_subtitle: "Busca por evento, ciudad y fecha, y afina por genero.",
     filter_search: "Buscar",
     filter_search_placeholder: "Evento, ciudad, local, género...",
     filter_city: "Ciudad",
@@ -444,11 +349,6 @@ const I18N = {
     filter_genre_all: "Todos los géneros",
     filter_reset: "Restablecer filtros",
     list_title: "Lista de eventos",
-    debug_title: "Modo debug",
-    debug_table: "Tabla:",
-    debug_loaded: "Eventos Supabase:",
-    debug_error: "Error:",
-    debug_note: "Nota:",
     result_count: "{count} resultados",
     status_loading: "Cargando eventos de Supabase...",
     status_connected: "Supabase conectado. {count} eventos cargados.",
@@ -469,14 +369,8 @@ const I18N = {
     details_no_description: "No hay descripción disponible.",
     details_time_fallback: "Hora por confirmar",
     navigation_unavailable: "No hay datos de navegación disponibles para este evento.",
-    debug_no_error: "No",
-    debug_note_pending: "Sin decisión todavía",
-    debug_note_supabase: "Sin fallback - datos de Supabase activos",
-    debug_note_no_data: "Sin datos de Supabase",
-    debug_note_error: "Error de Supabase - fallback demo activo",
     button_all: "Todos",
     submit_cta: "Enviar evento",
-    admin_quick_access: "Admin",
     form_title: "Enviar evento",
     form_hint: "Tu evento será revisado antes de publicarse.",
     form_submit: "Enviar evento",
@@ -491,39 +385,6 @@ const I18N = {
     form_error_image_size: "La imagen es demasiado grande. Máximo 5 MB.",
     form_error_image_upload: "La carga de imagen falló. Inténtalo de nuevo.",
     form_error_image_cleanup: "Nota: la imagen subida no se pudo limpiar automáticamente.",
-    admin_title: "Moderación",
-    admin_subtitle: "Revisa eventos enviados y decide su publicación.",
-    admin_pending_count: "{count} pendientes",
-    admin_no_pending: "No hay envíos pendientes.",
-    admin_submitted_by: "Enviado por",
-    admin_contact: "Contacto",
-    admin_notes: "Nota de revisión",
-    admin_notes_placeholder: "Opcional: motivo / nota",
-    admin_action_approve: "Aprobar",
-    admin_action_reject: "Rechazar",
-    admin_update_success_approved: "Evento aprobado.",
-    admin_update_success_rejected: "Evento rechazado.",
-    admin_update_error: "No se pudo guardar la moderación.",
-    admin_geo_label: "Coordenadas",
-    admin_geo_ok: "disponibles",
-    admin_geo_missing: "faltan",
-    admin_geo_unknown: "desconocido",
-    admin_mode_active: "Modo admin activo: se pueden moderar eventos pendientes.",
-    admin_login_title: "Acceso admin",
-    admin_login_hint: "Inicia sesión con correo admin y contraseña para moderar eventos.",
-    admin_login_email_label: "Correo admin",
-    admin_login_email_placeholder: "p. ej. admin@tudominio.com",
-    admin_login_password_label: "Contraseña",
-    admin_login_password_placeholder: "Tu contraseña",
-    admin_login_submit: "Iniciar sesión con contraseña",
-    admin_logout: "Cerrar sesión",
-    admin_auth_required: "Se requiere autenticación de admin.",
-    admin_role_required: "Se requiere rol de admin.",
-    admin_logged_in_as: "Conectado como {email}",
-    admin_login_sent: "Enlace enviado. Revisa tu correo.",
-    admin_login_success: "Inicio de sesión correcto.",
-    admin_login_error: "No se pudo iniciar sesión.",
-    admin_session_error: "No se pudo validar la sesión de admin.",
     form_error_required: "Completa los campos obligatorios.",
     form_error_email: "Ingresa un correo electrónico válido.",
     form_error_geocode_pending: "Dirección guardada. Las coordenadas se pueden completar durante la moderación.",
@@ -587,18 +448,15 @@ const SUPPORTED_LANGUAGES = [
 
 const state = {
   allEvents: [],
-  moderationEvents: [],
   filteredEvents: [],
   selectedEventId: null,
-  adminSession: null,
   sourceType: "unknown",
-  isAdminMode: false,
   availableGenres: [],
   availableDates: [],
   activeGenres: new Set(),
   lang: "de",
   debug: {
-    enabled: true,
+    enabled: Boolean(window.PARTYRADAR_DEV_DEBUG),
     tableName: "events",
     supabaseLoadedCount: 0,
     hasError: false,
@@ -610,29 +468,12 @@ const state = {
 const dom = {
   htmlRoot: document.documentElement,
   languageSwitch: document.getElementById("languageSwitch"),
-  heroSearchForm: document.getElementById("heroSearchForm"),
-  heroSearchInput: document.getElementById("heroSearchInput"),
-  heroCityFilter: document.getElementById("heroCityFilter"),
-  heroDateFilter: document.getElementById("heroDateFilter"),
   submitModal: document.getElementById("submitModal"),
   openSubmitModal: document.getElementById("openSubmitModal"),
-  openAdminModeButton: document.getElementById("openAdminModeButton"),
   closeSubmitModal: document.getElementById("closeSubmitModal"),
   status: document.getElementById("status"),
   eventList: document.getElementById("eventList"),
   eventDetails: document.getElementById("eventDetails"),
-  moderationPanel: document.getElementById("moderationPanel"),
-  adminAuthGate: document.getElementById("adminAuthGate"),
-  adminAuthFeedback: document.getElementById("adminAuthFeedback"),
-  adminAuthEmail: document.getElementById("adminAuthEmail"),
-  adminAuthPassword: document.getElementById("adminAuthPassword"),
-  adminAuthForm: document.getElementById("adminAuthForm"),
-  adminSignOut: document.getElementById("adminSignOut"),
-  moderationWorkspace: document.getElementById("moderationWorkspace"),
-  adminSessionInfo: document.getElementById("adminSessionInfo"),
-  moderationCount: document.getElementById("moderationCount"),
-  moderationFeedback: document.getElementById("moderationFeedback"),
-  moderationList: document.getElementById("moderationList"),
   resultCount: document.getElementById("resultCount"),
   filtersForm: document.getElementById("filtersForm"),
   searchInput: document.getElementById("searchInput"),
@@ -657,12 +498,7 @@ const dom = {
   formMainImage: document.getElementById("formMainImage"),
   formSubmittedBy: document.getElementById("formSubmittedBy"),
   formContactEmail: document.getElementById("formContactEmail"),
-  formDescription: document.getElementById("formDescription"),
-  debugPanel: document.getElementById("debugPanel"),
-  debugLoadedCount: document.getElementById("debugLoadedCount"),
-  debugErrorState: document.getElementById("debugErrorState"),
-  debugTableName: document.getElementById("debugTableName"),
-  debugFallbackReason: document.getElementById("debugFallbackReason")
+  formDescription: document.getElementById("formDescription")
 };
 
 let map;
@@ -717,10 +553,6 @@ function applyStaticTranslations() {
   document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
     element.placeholder = t(element.dataset.i18nPlaceholder);
   });
-  const buildBadge = document.getElementById("buildBadge");
-  if (buildBadge) {
-    buildBadge.textContent = `Build ${APP_BUILD_VERSION}`;
-  }
   renderLanguageControls();
 }
 
@@ -747,7 +579,6 @@ function switchLanguage(nextLangCode) {
   state.lang = nextLang;
   applyStaticTranslations();
   updateFilterOptions();
-  syncHeroFilterOptions();
   applyFiltersFromQuery();
   applyFilters();
   if (state.selectedEventId) {
@@ -756,8 +587,6 @@ function switchLanguage(nextLangCode) {
   } else {
     renderEventDetails(null);
   }
-  updateDebugPanel();
-  renderModerationPanel();
   updateUrlFromFilters();
 }
 
@@ -792,38 +621,6 @@ function setFormSubmitting(isSubmitting) {
   if (!dom.formSubmitButton) return;
   dom.formSubmitButton.disabled = isSubmitting;
   dom.formSubmitButton.textContent = isSubmitting ? t("form_loading") : t("form_submit");
-}
-
-function setModerationFeedback(message, tone = "info") {
-  if (!dom.moderationFeedback) return;
-  dom.moderationFeedback.hidden = !message;
-  dom.moderationFeedback.textContent = message || "";
-  dom.moderationFeedback.className = "add-event-message";
-  if (message && tone === "error") dom.moderationFeedback.classList.add("is-error");
-  if (message && tone === "success") dom.moderationFeedback.classList.add("is-success");
-}
-
-function setAdminAuthFeedback(message, tone = "info") {
-  if (!dom.adminAuthFeedback) return;
-  dom.adminAuthFeedback.hidden = !message;
-  dom.adminAuthFeedback.textContent = message || "";
-  dom.adminAuthFeedback.className = "add-event-message";
-  if (message && tone === "error") dom.adminAuthFeedback.classList.add("is-error");
-  if (message && tone === "success") dom.adminAuthFeedback.classList.add("is-success");
-}
-
-function updateDebugPanel() {
-  if (!dom.debugPanel) return;
-  dom.debugPanel.classList.remove("debug-panel--error");
-  if (dom.debugTableName) dom.debugTableName.textContent = state.debug.tableName;
-  if (dom.debugLoadedCount) dom.debugLoadedCount.textContent = String(state.debug.supabaseLoadedCount);
-  if (dom.debugErrorState) {
-    dom.debugErrorState.textContent = state.debug.hasError
-      ? `Ja - ${state.debug.errorMessage}`
-      : t("debug_no_error");
-  }
-  if (dom.debugFallbackReason) dom.debugFallbackReason.textContent = state.debug.fallbackReason;
-  if (state.debug.hasError) dom.debugPanel.classList.add("debug-panel--error");
 }
 
 function normalizeStatus(statusValue) {
@@ -1195,7 +992,7 @@ async function resolveCoordinatesForPayload(payload) {
     }
     throw new Error("No geocoding result");
   } catch (error) {
-    console.warn("[PartyRadar Debug] Geocoding failed:", error);
+    devDebugLog("[PartyRadar Debug] Geocoding failed:", error);
     throw new Error(error?.message || "Geocoding failed");
   }
 }
@@ -1204,6 +1001,11 @@ function supabaseErrorText(error) {
   return [error?.message, error?.details, error?.hint]
     .filter(Boolean)
     .join(" | ");
+}
+
+function devDebugLog(...args) {
+  if (!state.debug.enabled) return;
+  console.log(...args);
 }
 
 function normalizeColumnName(rawColumn) {
@@ -1234,7 +1036,7 @@ function extractMissingColumnFromSupabaseError(error) {
 }
 
 async function insertEventWithSchemaFallback(client, payload) {
-  const tableName = state.debug.tableName || "events";
+  const tableName = "events";
   // Avoid returning inserted rows here because strict SELECT RLS policies
   // (e.g. only approved events) can reject the return payload even when
   // the INSERT itself is valid.
@@ -1416,7 +1218,6 @@ function sourceLabel() {
 }
 
 function sourceTone() {
-  if (state.isAdminMode) return "ok";
   return state.sourceType === "supabase" ? "ok" : "warning";
 }
 
@@ -1443,16 +1244,11 @@ function readQueryParams() {
     q: params.get("q") || "",
     city: params.get("city") || "",
     date: params.get("date") || "",
-    admin: params.get("admin") || "",
     genres: (params.get("genres") || "")
       .split(",")
       .map((genre) => genre.trim())
       .filter(Boolean)
   };
-}
-
-function resolveAdminMode(queryValue) {
-  return queryValue === "1" || queryValue === "true";
 }
 
 function updateUrlFromFilters() {
@@ -1462,7 +1258,6 @@ function updateUrlFromFilters() {
   const date = dom.dateFilter.value;
 
   if (state.lang !== "de") params.set("lang", state.lang);
-  if (state.isAdminMode) params.set("admin", "1");
   if (search) params.set("q", search);
   if (city) params.set("city", city);
   if (date) params.set("date", date);
@@ -1473,126 +1268,8 @@ function updateUrlFromFilters() {
   window.history.replaceState({}, "", nextUrl);
 }
 
-function openAdminModeQuickAccess() {
-  window.location.href = "./admin.html";
-}
-
 function supabaseClient() {
   return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-
-function sessionAdminRole(session) {
-  return String(session?.user?.app_metadata?.role || "").trim().toLowerCase();
-}
-
-function isSessionAdmin(session) {
-  return sessionAdminRole(session) === ADMIN_REQUIRED_ROLE.toLowerCase();
-}
-
-function renderAdminAuthState(session) {
-  const adminEnabled = state.isAdminMode;
-  const isAuthedAdmin = isSessionAdmin(session);
-  const hasSession = Boolean(session?.user?.id);
-  if (dom.moderationPanel) {
-    dom.moderationPanel.hidden = !adminEnabled;
-  }
-  if (dom.adminAuthGate) {
-    dom.adminAuthGate.hidden = isAuthedAdmin || !adminEnabled;
-  }
-  if (dom.moderationWorkspace) {
-    dom.moderationWorkspace.hidden = !isAuthedAdmin || !adminEnabled;
-  }
-  if (dom.adminSignOut) {
-    dom.adminSignOut.hidden = !isAuthedAdmin;
-  }
-  if (dom.adminAuthForm) {
-    dom.adminAuthForm.hidden = isAuthedAdmin;
-  }
-  if (dom.adminSessionInfo) {
-    dom.adminSessionInfo.textContent = isAuthedAdmin
-      ? t("admin_logged_in_as", { email: session.user.email || "-" })
-      : hasSession
-        ? t("admin_role_required")
-        : t("admin_auth_required");
-  }
-}
-
-async function checkAdminSession() {
-  if (!state.isAdminMode) return null;
-  try {
-    const client = supabaseClient();
-    const { data, error } = await client.auth.getSession();
-    if (error) throw error;
-    const session = data?.session || null;
-    state.adminSession = session;
-    renderAdminAuthState(session);
-    if (session && !isSessionAdmin(session)) {
-      setAdminAuthFeedback(t("admin_role_required"), "error");
-    }
-    if (!isSessionAdmin(session)) {
-      state.moderationEvents = [];
-      renderModerationPanel();
-    }
-    return session;
-  } catch (error) {
-    console.error("Admin session check failed:", error);
-    state.adminSession = null;
-    renderAdminAuthState(null);
-    setAdminAuthFeedback(t("admin_session_error"), "error");
-    return null;
-  }
-}
-
-function renderModerationPanel() {
-  if (!dom.moderationPanel || !dom.moderationList || !dom.moderationCount) return;
-  if (!state.isAdminMode || !isSessionAdmin(state.adminSession)) return;
-
-  const pendingEvents = state.moderationEvents.filter((event) => event.status === "pending");
-  dom.moderationCount.textContent = t("admin_pending_count", { count: pendingEvents.length });
-  dom.moderationList.innerHTML = "";
-
-  if (!pendingEvents.length) {
-    dom.moderationList.innerHTML = `<p class="admin-empty">${t("admin_no_pending")}</p>`;
-    return;
-  }
-
-  pendingEvents.forEach((event) => {
-    const card = document.createElement("article");
-    card.className = "admin-card";
-    card.dataset.eventId = event.id;
-    let geoStatus = t("admin_geo_unknown");
-    let geoStatusClass = "";
-    if (Number.isFinite(event.lat) && Number.isFinite(event.lng)) {
-      geoStatus = t("admin_geo_ok");
-      geoStatusClass = "admin-geo-badge--ok";
-    } else if (event.geocoding_query) {
-      geoStatus = t("admin_geo_missing");
-      geoStatusClass = "admin-geo-badge--missing";
-    }
-    card.innerHTML = `
-      <h4>${event.name}</h4>
-      <div class="admin-card__meta">
-        <span>${formatEventPlace(event)}</span>
-        <span>${formatDateTime(event)}</span>
-        <span>${event.genre || "-"}</span>
-        <span class="admin-card__geo">
-          ${t("admin_geo_label")}:
-          <strong class="admin-geo-badge ${geoStatusClass}">${geoStatus}</strong>
-        </span>
-        <span>${t("admin_submitted_by")}: ${event.submitted_by || "-"}</span>
-        <span>${t("admin_contact")}: ${event.contact_email || "-"}</span>
-      </div>
-      <label class="field field--full admin-card__notes">
-        <span>${t("admin_notes")}</span>
-        <textarea data-notes rows="2" placeholder="${t("admin_notes_placeholder")}">${event.verification_notes || ""}</textarea>
-      </label>
-      <div class="admin-card__actions">
-        <button type="button" class="button-secondary button-secondary--approve" data-action="approve">${t("admin_action_approve")}</button>
-        <button type="button" class="button-secondary button-secondary--reject" data-action="reject">${t("admin_action_reject")}</button>
-      </div>
-    `;
-    dom.moderationList.append(card);
-  });
 }
 
 function renderGenreFilter() {
@@ -1644,7 +1321,6 @@ function updateFilterOptions() {
     if (!state.availableGenres.includes(genre)) state.activeGenres.delete(genre);
   });
   renderGenreFilter();
-  syncHeroFilterOptions();
 }
 
 function applyFiltersFromQuery() {
@@ -1658,7 +1334,6 @@ function applyFiltersFromQuery() {
   }
   state.activeGenres = new Set(normalizeRequestedGenres(query.genres));
   renderGenreFilter();
-  syncHeroControlsFromSidebar();
 }
 
 function getActiveFilters() {
@@ -1668,27 +1343,6 @@ function getActiveFilters() {
     date: dom.dateFilter.value,
     genres: new Set([...state.activeGenres].map((genre) => genre.toLowerCase()))
   };
-}
-
-function syncHeroFilterOptions() {
-  if (!dom.heroCityFilter || !dom.heroDateFilter || !dom.cityFilter || !dom.dateFilter) return;
-
-  dom.heroCityFilter.innerHTML = dom.cityFilter.innerHTML;
-  dom.heroDateFilter.innerHTML = dom.dateFilter.innerHTML;
-  dom.heroCityFilter.value = dom.cityFilter.value;
-  dom.heroDateFilter.value = dom.dateFilter.value;
-}
-
-function syncHeroControlsFromSidebar() {
-  if (dom.heroSearchInput && dom.searchInput) dom.heroSearchInput.value = dom.searchInput.value;
-  if (dom.heroCityFilter && dom.cityFilter) dom.heroCityFilter.value = dom.cityFilter.value;
-  if (dom.heroDateFilter && dom.dateFilter) dom.heroDateFilter.value = dom.dateFilter.value;
-}
-
-function syncSidebarFromHeroControls() {
-  if (dom.heroSearchInput && dom.searchInput) dom.searchInput.value = dom.heroSearchInput.value;
-  if (dom.heroCityFilter && dom.cityFilter) dom.cityFilter.value = dom.heroCityFilter.value;
-  if (dom.heroDateFilter && dom.dateFilter) dom.dateFilter.value = dom.heroDateFilter.value;
 }
 
 function eventMatchesGenres(event, activeGenresLower) {
@@ -1961,7 +1615,6 @@ function resetFilters() {
   dom.searchInput.value = "";
   dom.cityFilter.value = "";
   dom.dateFilter.value = "";
-  syncHeroControlsFromSidebar();
   state.activeGenres.clear();
   renderGenreFilter();
   state.selectedEventId = null;
@@ -1989,12 +1642,10 @@ function closeSubmitModal() {
 }
 
 async function reloadEventsAndRender() {
-  await checkAdminSession();
   await loadEvents();
   updateFilterOptions();
   applyFiltersFromQuery();
   applyFilters();
-  renderModerationPanel();
 }
 
 async function handleCreateEventSubmit(submitEvent) {
@@ -2036,15 +1687,15 @@ async function handleCreateEventSubmit(submitEvent) {
     const insertPayload = buildInsertPayload(payloadWithCoordinates);
     const { data, error } = await insertEventWithSchemaFallback(client, insertPayload);
 
-    console.log("[PartyRadar Debug] Event insert data:", data);
-    console.log("[PartyRadar Debug] Event insert error:", error);
+    devDebugLog("[PartyRadar Debug] Event insert data:", data);
+    devDebugLog("[PartyRadar Debug] Event insert error:", error);
 
     if (error) {
       if (uploadedImagePath) {
         try {
           await deleteUploadedEventImage(client, uploadedImagePath);
         } catch (cleanupError) {
-          console.warn("[PartyRadar Debug] Image cleanup failed:", cleanupError);
+          devDebugLog("[PartyRadar Debug] Image cleanup failed:", cleanupError);
           throw new Error(`${error.message || "Insert failed"} ${t("form_error_image_cleanup")}`.trim());
         }
       }
@@ -2067,78 +1718,12 @@ async function handleCreateEventSubmit(submitEvent) {
   }
 }
 
-async function updateModerationStatus(eventId, nextStatus, verificationNotes) {
-  const session = await checkAdminSession();
-  if (!isSessionAdmin(session)) {
-    throw new Error(session ? t("admin_role_required") : t("admin_auth_required"));
-  }
-  const client = supabaseClient();
-  const payload = {
-    status: nextStatus,
-    verification_notes: verificationNotes || null
-  };
-
-  if (USE_MODERATION_EDGE_FUNCTION) {
-    const { data, error } = await client.functions.invoke(MODERATION_EDGE_FUNCTION_NAME, {
-      body: {
-        event_id: eventId,
-        status: payload.status,
-        verification_notes: payload.verification_notes
-      }
-    });
-    console.log("[PartyRadar Debug] Moderation edge data:", data);
-    console.log("[PartyRadar Debug] Moderation edge error:", error);
-    if (error) throw new Error(error.message);
-    return;
-  }
-
-  const { data, error } = await client
-    .from(state.debug.tableName || "events")
-    .update(payload)
-    .eq("id", eventId)
-    .select("*")
-    .single();
-
-  console.log("[PartyRadar Debug] Moderation update data:", data);
-  console.log("[PartyRadar Debug] Moderation update error:", error);
-  if (error) throw new Error(error.message);
-}
-
 function bindEvents() {
   dom.filtersForm.addEventListener("submit", (event) => event.preventDefault());
-  if (dom.heroSearchForm) {
-    dom.heroSearchForm.addEventListener("submit", (event) => event.preventDefault());
-  }
-  dom.searchInput.addEventListener("input", () => {
-    syncHeroControlsFromSidebar();
-    applyFilters();
-  });
-  dom.cityFilter.addEventListener("change", () => {
-    syncHeroControlsFromSidebar();
-    applyFilters();
-  });
-  dom.dateFilter.addEventListener("change", () => {
-    syncHeroControlsFromSidebar();
-    applyFilters();
-  });
-  if (dom.heroSearchInput) {
-    dom.heroSearchInput.addEventListener("input", () => {
-      syncSidebarFromHeroControls();
-      applyFilters();
-    });
-  }
-  if (dom.heroCityFilter) {
-    dom.heroCityFilter.addEventListener("change", () => {
-      syncSidebarFromHeroControls();
-      applyFilters();
-    });
-  }
-  if (dom.heroDateFilter) {
-    dom.heroDateFilter.addEventListener("change", () => {
-      syncSidebarFromHeroControls();
-      applyFilters();
-    });
-  }
+  dom.searchInput.addEventListener("input", applyFilters);
+  dom.cityFilter.addEventListener("change", applyFilters);
+  dom.dateFilter.addEventListener("change", applyFilters);
+
   if (dom.languageSwitch) {
     dom.languageSwitch.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-lang-switch]");
@@ -2146,15 +1731,11 @@ function bindEvents() {
       switchLanguage(button.dataset.langSwitch);
     });
   }
+
   if (dom.openSubmitModal) {
     dom.openSubmitModal.addEventListener("click", () => {
       setFormFeedback("");
       openSubmitModal();
-    });
-  }
-  if (dom.openAdminModeButton) {
-    dom.openAdminModeButton.addEventListener("click", () => {
-      openAdminModeQuickAccess();
     });
   }
   if (dom.closeSubmitModal) {
@@ -2177,9 +1758,9 @@ function bindEvents() {
       closeSubmitModal();
     }
   });
+
   dom.resetFilters.addEventListener("click", resetFilters);
   dom.clearGenresButton.addEventListener("click", clearGenreSelection);
-
   dom.genreFilterGroup.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-genre]");
     if (!button) return;
@@ -2196,79 +1777,6 @@ function bindEvents() {
   if (dom.eventForm) {
     dom.eventForm.addEventListener("submit", handleCreateEventSubmit);
   }
-  if (dom.adminAuthForm) {
-    dom.adminAuthForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      if (!dom.adminAuthEmail || !dom.adminAuthPassword) return;
-      const email = dom.adminAuthEmail.value.trim().toLowerCase();
-      const password = dom.adminAuthPassword.value;
-      if (!email || !password) return;
-      setAdminAuthFeedback("");
-      try {
-        const client = supabaseClient();
-        const { error } = await client.auth.signInWithPassword({
-          email,
-          password
-        });
-        if (error) throw error;
-        setAdminAuthFeedback(t("admin_login_success"), "success");
-        await checkAdminSession();
-        await reloadEventsAndRender();
-      } catch (error) {
-        console.error("Admin login failed:", error);
-        setAdminAuthFeedback(
-          `${t("admin_login_error")} ${error?.message || ""}`.trim(),
-          "error"
-        );
-      }
-    });
-  }
-  if (dom.adminSignOut) {
-    dom.adminSignOut.addEventListener("click", async () => {
-      try {
-        const client = supabaseClient();
-        await client.auth.signOut();
-        state.adminSession = null;
-        setAdminAuthFeedback("");
-        setModerationFeedback("");
-        renderAdminAuthState(null);
-        renderModerationPanel();
-      } catch (error) {
-        console.error("Admin logout failed:", error);
-      }
-    });
-  }
-  if (dom.moderationList) {
-    dom.moderationList.addEventListener("click", async (event) => {
-      const actionButton = event.target.closest("button[data-action]");
-      if (!actionButton) return;
-      const action = actionButton.dataset.action;
-      const card = actionButton.closest(".admin-card");
-      if (!card) return;
-      const eventId = card.dataset.eventId;
-      if (!eventId) return;
-
-      const notesInput = card.querySelector("textarea[data-notes]");
-      const verificationNotes = notesInput ? notesInput.value.trim() : "";
-      const nextStatus = action === "approve" ? "approved" : "rejected";
-
-      actionButton.disabled = true;
-      setModerationFeedback("");
-      try {
-        await updateModerationStatus(eventId, nextStatus, verificationNotes);
-        setModerationFeedback(
-          nextStatus === "approved" ? t("admin_update_success_approved") : t("admin_update_success_rejected"),
-          "success"
-        );
-        await reloadEventsAndRender();
-      } catch (error) {
-        console.error("Moderation fehlgeschlagen:", error);
-        setModerationFeedback(`${t("admin_update_error")} ${error.message || ""}`.trim(), "error");
-      } finally {
-        actionButton.disabled = false;
-      }
-    });
-  }
 }
 
 async function fetchEventsFromSupabase() {
@@ -2280,12 +1788,12 @@ async function fetchEventsFromSupabase() {
   }
 
   const client = supabaseClient();
-  const tableName = state.debug.tableName || "events";
+  const tableName = "events";
   const { data, error } = await client.from(tableName).select("*").order("event_date", { ascending: true });
 
-  console.log("[PartyRadar Debug] Supabase table:", tableName);
-  console.log("[PartyRadar Debug] Supabase data:", data);
-  console.log("[PartyRadar Debug] Supabase error:", error);
+  devDebugLog("[PartyRadar Debug] Supabase table:", tableName);
+  devDebugLog("[PartyRadar Debug] Supabase data:", data);
+  devDebugLog("[PartyRadar Debug] Supabase error:", error);
 
   if (error) throw new Error(error.message);
   return (data || []).map(normalizeEvent);
@@ -2295,9 +1803,9 @@ async function loadEvents() {
   setStatus(t("status_loading"), "loading");
   state.debug.hasError = false;
   state.debug.errorMessage = "";
-  state.debug.fallbackReason = t("debug_note_pending");
+  state.debug.fallbackReason = "pending";
   state.debug.supabaseLoadedCount = 0;
-  updateDebugPanel();
+
 
   try {
     const data = await fetchEventsFromSupabase();
@@ -2305,34 +1813,24 @@ async function loadEvents() {
 
     if (!data.length) {
       state.allEvents = demoEvents.map(normalizeEvent);
-      state.moderationEvents = [];
       state.sourceType = "demo-no-data";
-      state.debug.fallbackReason = t("debug_note_no_data");
+      state.debug.fallbackReason = "no-data";
       setStatus(t("status_no_data"), "warning");
-      updateDebugPanel();
       return;
     }
 
-    state.moderationEvents = isSessionAdmin(state.adminSession) ? data : [];
     state.allEvents = data.filter(isApprovedEvent);
     state.sourceType = "supabase";
-    state.debug.fallbackReason = t("debug_note_supabase");
-    if (state.isAdminMode && isSessionAdmin(state.adminSession)) {
-      setStatus(t("admin_mode_active"), "ok");
-    } else {
-      setStatus(t("status_connected", { count: state.allEvents.length }), "ok");
-    }
-    updateDebugPanel();
+    state.debug.fallbackReason = "supabase";
+    setStatus(t("status_connected", { count: state.allEvents.length }), "ok");
   } catch (error) {
     console.error("Supabase Fehler:", error);
     state.allEvents = demoEvents.map(normalizeEvent);
-    state.moderationEvents = [];
     state.sourceType = "demo-error";
     state.debug.hasError = true;
     state.debug.errorMessage = error.message;
-    state.debug.fallbackReason = t("debug_note_error");
+    state.debug.fallbackReason = "error";
     setStatus(t("status_error", { message: error.message }), "warning");
-    updateDebugPanel();
   }
 }
 
@@ -2340,20 +1838,15 @@ async function startApp() {
   const query = readQueryParams();
   const requestedLang = resolveLanguage(query.lang);
   state.lang = query.lang ? requestedLang : resolveLanguageFromBrowser(requestedLang);
-  state.isAdminMode = resolveAdminMode(query.admin);
   applyStaticTranslations();
-  renderAdminAuthState(null);
   renderEventDetails(null);
 
   initMap();
   bindEvents();
-  await checkAdminSession();
   await loadEvents();
   updateFilterOptions();
   applyFiltersFromQuery();
-  syncHeroControlsFromSidebar();
   applyFilters();
-  renderModerationPanel();
 }
 
 startApp();
