@@ -1858,14 +1858,7 @@ function renderEventDetails(event) {
   dom.eventDetails.innerHTML = `
     ${event.image_url ? `<img class="event-details__image" src="${event.image_url}" alt="${event.name}" loading="lazy">` : ""}
     <h4>${event.name}</h4>
-    <ul>
-      <li><strong>${t("details_location")}:</strong> ${locationLine || "-"}</li>
-      <li><strong>${t("details_date")}:</strong> ${formatDateTime(event)}</li>
-      <li><strong>${t("details_genre")}:</strong> ${event.genre || "-"}</li>
-      <li><strong>${t("details_price")}:</strong> ${formatPrice(event.price_text)}</li>
-    </ul>
-    <p>${event.description || t("details_no_description")}</p>
-    <div class="event-details__actions">
+    <div class="event-details__actions event-details__actions--top">
       ${
         navigationUrl
           ? `
@@ -1889,6 +1882,13 @@ function renderEventDetails(event) {
       `
       }
     </div>
+    <ul>
+      <li><strong>${t("details_location")}:</strong> ${locationLine || "-"}</li>
+      <li><strong>${t("details_date")}:</strong> ${formatDateTime(event)}</li>
+      <li><strong>${t("details_genre")}:</strong> ${event.genre || "-"}</li>
+      <li><strong>${t("details_price")}:</strong> ${formatPrice(event.price_text)}</li>
+    </ul>
+    <p>${event.description || t("details_no_description")}</p>
   `;
 }
 

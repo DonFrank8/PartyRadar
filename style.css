@@ -572,11 +572,16 @@ body.body--modal-open {
 }
 
 .event-card__navigate {
-  min-height: 34px;
-  padding: 0.34rem 0.68rem;
+  min-height: 38px;
+  padding: 0.4rem 0.82rem;
   border-radius: 999px;
-  font-size: 0.79rem;
+  font-size: 0.81rem;
   font-weight: 600;
+  box-shadow: 0 10px 20px rgba(255, 122, 155, 0.2);
+}
+
+.event-card__navigate:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .event-list__empty {
