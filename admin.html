@@ -6,10 +6,10 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>PartyRadar Admin | Event Moderation</title>
+  <title>VIBEON Admin | Event Moderation Studio</title>
   <meta
     name="description"
-    content="PartyRadar Admin Dashboard zur Prüfung, Freigabe und Ablehnung von Event-Einreichungen."
+    content="VIBEON Admin Studio zur Prüfung, Freigabe und Ablehnung von Event-Einreichungen."
   >
   <script>
     (function () {
@@ -26,12 +26,16 @@
   <header class="admin-header">
     <div class="admin-header__inner">
       <div>
-        <p class="admin-header__eyebrow">PartyRadar</p>
-        <h1>Admin Dashboard</h1>
-        <p class="admin-header__subtitle">Moderation, Qualitätssicherung und Featured-Vorbereitung.</p>
+        <div class="admin-header__brand" aria-label="VIBEON Brand">
+          <!-- Logo placeholder: replace with official VIBEON icon/full logo asset -->
+          <span class="brand-logo brand-logo--icon" aria-hidden="true"></span>
+          <p class="admin-header__eyebrow">VIBEON</p>
+        </div>
+        <h1>Admin Studio</h1>
+        <p class="admin-header__subtitle">Moderation, Qualitätssicherung und Curation für Music, Beach und Lifestyle Events.</p>
       </div>
       <div class="admin-header__actions">
-        <a class="button button--ghost" href="./index.html">Zur öffentlichen Seite</a>
+        <a class="button button--ghost" href="./index.html">Zur VIBEON Explore Seite</a>
         <button id="adminHeaderSignOutButton" type="button" class="button button--ghost" hidden>
           Abmelden
         </button>
@@ -42,7 +46,7 @@
   <main class="admin-shell">
     <section id="adminAuthCard" class="card card--auth">
       <h2>Admin Login</h2>
-      <p class="card__intro">Nur freigegebene Admin-E-Mails können Moderation und Statusänderungen durchführen.</p>
+      <p class="card__intro">Nur freigegebene Admin-E-Mails können Moderation und Statusänderungen im VIBEON Feed durchführen.</p>
       <form id="adminLoginForm" class="auth-form" novalidate>
         <label class="field">
           <span>E-Mail</span>
@@ -61,7 +65,7 @@
       <section class="card card--toolbar">
         <div class="toolbar-top">
           <div>
-            <h2>Event Moderation</h2>
+            <h2>Event Moderation Queue</h2>
             <p id="adminSessionInfo" class="card__intro">-</p>
           </div>
           <button id="adminSignOutButton" type="button" class="button button--ghost">Abmelden</button>
