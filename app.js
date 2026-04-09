@@ -9,6 +9,9 @@ const GEOCODING_PROVIDER = "nominatim";
 const GEOCODING_MIN_INTERVAL_MS = 850;
 const GEOCODING_MAX_RETRIES = 2;
 const MAPBOX_ACCESS_TOKEN = (window.PARTYRADAR_MAPBOX_TOKEN || "").toString().trim();
+const EVENT_IMAGES_BUCKET = "event-images";
+const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_EVENT_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
 
@@ -170,6 +173,11 @@ const I18N = {
     form_error_rls_submit:
       "Zugriff durch Datenbank-Sicherheitsregel (RLS) blockiert. Bitte supabase-rls.sql ausführen/aktualisieren, damit pending Einreichungen erlaubt sind.",
     form_error_geocoding_failed: "Adresse konnte nicht geokodiert werden. Bitte Eingabe prüfen.",
+    form_error_image_required: "Bitte ein Hauptbild auswählen.",
+    form_error_image_type: "Bitte ein gültiges Bild (JPG, PNG oder WebP) auswählen.",
+    form_error_image_size: "Das Bild ist zu groß. Maximal 5 MB erlaubt.",
+    form_error_image_upload: "Bild-Upload fehlgeschlagen. Bitte erneut versuchen.",
+    form_error_image_cleanup: "Hinweis: Das hochgeladene Bild konnte nicht automatisch bereinigt werden.",
     admin_title: "Moderation",
     admin_subtitle: "Prüfe eingereichte Events und entscheide über Veröffentlichung.",
     admin_pending_count: "{count} ausstehend",
@@ -219,8 +227,10 @@ const I18N = {
     form_label_genre: "Genre",
     form_label_price_text: "Preis",
     form_label_description: "Beschreibung",
+    form_label_main_image: "Hauptbild",
     form_label_submitted_by: "Dein Name (Einreicher)",
     form_label_contact_email: "Kontakt E-Mail",
+    form_hint_main_image: "1 Bild (JPG/PNG/WebP), max. 5 MB",
     form_placeholder_name: "z. B. Summer Beats Night",
     form_placeholder_location_name: "z. B. Beach Club",
     form_placeholder_address: "z. B. Paseo Marítimo 1",
@@ -306,6 +316,11 @@ const I18N = {
     form_error_rls_submit:
       "Permission denied by database security (RLS). Please run/update supabase-rls.sql to allow pending event submissions.",
     form_error_geocoding_failed: "Address could not be geocoded. Please check your input.",
+    form_error_image_required: "Please select a main image.",
+    form_error_image_type: "Please upload a valid image (JPG, PNG, or WebP).",
+    form_error_image_size: "The image is too large. Maximum is 5 MB.",
+    form_error_image_upload: "Image upload failed. Please try again.",
+    form_error_image_cleanup: "Note: Uploaded image could not be cleaned up automatically.",
     admin_title: "Moderation",
     admin_subtitle: "Review submitted events and decide publication.",
     admin_pending_count: "{count} pending",
@@ -355,8 +370,10 @@ const I18N = {
     form_label_genre: "Genre",
     form_label_price_text: "Price",
     form_label_description: "Description",
+    form_label_main_image: "Main image",
     form_label_submitted_by: "Your Name (Submitter)",
     form_label_contact_email: "Contact email",
+    form_hint_main_image: "1 image (JPG/PNG/WebP), max. 5 MB",
     form_placeholder_name: "e.g. Summer Beats Night",
     form_placeholder_location_name: "e.g. Beach Club",
     form_placeholder_address: "e.g. Paseo Maritimo 1",
@@ -442,6 +459,11 @@ const I18N = {
     form_error_rls_submit:
       "Permiso denegado por la seguridad de base de datos (RLS). Ejecuta/actualiza supabase-rls.sql para permitir envíos en estado pending.",
     form_error_geocoding_failed: "No se pudo geocodificar la dirección. Revisa los datos.",
+    form_error_image_required: "Selecciona una imagen principal.",
+    form_error_image_type: "Sube una imagen válida (JPG, PNG o WebP).",
+    form_error_image_size: "La imagen es demasiado grande. Máximo 5 MB.",
+    form_error_image_upload: "La carga de imagen falló. Inténtalo de nuevo.",
+    form_error_image_cleanup: "Nota: la imagen subida no se pudo limpiar automáticamente.",
     admin_title: "Moderación",
     admin_subtitle: "Revisa eventos enviados y decide su publicación.",
     admin_pending_count: "{count} pendientes",
@@ -491,8 +513,10 @@ const I18N = {
     form_label_genre: "Género",
     form_label_price_text: "Precio",
     form_label_description: "Descripción",
+    form_label_main_image: "Imagen principal",
     form_label_submitted_by: "Tu nombre (remitente)",
     form_label_contact_email: "Correo de contacto",
+    form_hint_main_image: "1 imagen (JPG/PNG/WebP), máx. 5 MB",
     form_placeholder_name: "p. ej. Summer Beats Night",
     form_placeholder_location_name: "p. ej. Beach Club",
     form_placeholder_address: "p. ej. Paseo Marítimo 1",
@@ -602,6 +626,7 @@ const dom = {
   formTime: document.getElementById("formTime"),
   formGenre: document.getElementById("formGenre"),
   formPrice: document.getElementById("formPrice"),
+  formMainImage: document.getElementById("formMainImage"),
   formSubmittedBy: document.getElementById("formSubmittedBy"),
   formContactEmail: document.getElementById("formContactEmail"),
   formDescription: document.getElementById("formDescription"),
@@ -657,6 +682,9 @@ function applyStaticTranslations() {
   dom.htmlRoot.lang = state.lang;
   document.querySelectorAll("[data-i18n]").forEach((element) => {
     element.textContent = t(element.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+    element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
   });
   document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
     element.placeholder = t(element.dataset.i18nPlaceholder);
@@ -828,9 +856,11 @@ function readFormPayload() {
     event_time: dom.formTime.value,
     genre: dom.formGenre.value.trim(),
     price_text: dom.formPrice.value.trim(),
+    main_image: dom.formMainImage?.files?.[0] || null,
     submitted_by: dom.formSubmittedBy.value.trim(),
     contact_email: dom.formContactEmail.value.trim(),
     description: dom.formDescription.value.trim(),
+    image_url: null,
     lat: null,
     lng: null
   };
@@ -855,12 +885,22 @@ function validateFormPayload(payload) {
   if (!emailRegex.test(payload.contact_email)) {
     return { valid: false, message: t("form_error_email") };
   }
+  if (!payload.main_image) {
+    return { valid: false, message: t("form_error_image_required") };
+  }
+  if (!ALLOWED_EVENT_IMAGE_MIME_TYPES.has(payload.main_image.type)) {
+    return { valid: false, message: t("form_error_image_type") };
+  }
+  if (payload.main_image.size > MAX_EVENT_IMAGE_BYTES) {
+    return { valid: false, message: t("form_error_image_size") };
+  }
   return { valid: true, message: "" };
 }
 
 function clearEventForm() {
   if (!dom.eventForm) return;
   dom.eventForm.reset();
+  if (dom.formMainImage) dom.formMainImage.value = "";
 }
 
 function buildInsertPayload(payload) {
@@ -879,6 +919,7 @@ function buildInsertPayload(payload) {
     genre: payload.genre,
     price_text: payload.price_text || null,
     description: payload.description || null,
+    image_url: payload.image_url || null,
     contact_email: payload.contact_email,
     submitted_by: payload.submitted_by,
     status: "pending",
@@ -887,6 +928,60 @@ function buildInsertPayload(payload) {
     lat: payload.lat,
     lng: payload.lng
   };
+}
+
+function sanitizeFileName(fileName) {
+  const raw = String(fileName || "").trim();
+  const normalized = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return normalized.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function fileExtension(fileName) {
+  const parts = String(fileName || "").split(".");
+  if (parts.length < 2) return "jpg";
+  const ext = String(parts.pop() || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+  return ext || "jpg";
+}
+
+function buildEventImagePath(file) {
+  const date = new Date();
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  const safeBase = sanitizeFileName((file?.name || "event-image").replace(/\.[^.]+$/, ""));
+  const ext = fileExtension(file?.name);
+  const random = Math.random().toString(36).slice(2, 10);
+  return `pending/${yyyy}/${mm}/${dd}/${Date.now()}-${random}-${safeBase}.${ext}`;
+}
+
+async function uploadEventImage(client, file) {
+  const path = buildEventImagePath(file);
+  const { error: uploadError } = await client.storage
+    .from(EVENT_IMAGES_BUCKET)
+    .upload(path, file, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false
+    });
+
+  if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl }
+  } = client.storage.from(EVENT_IMAGES_BUCKET).getPublicUrl(path);
+
+  if (!publicUrl) {
+    throw new Error("Could not resolve public image URL");
+  }
+
+  return { path, publicUrl };
+}
+
+async function deleteUploadedEventImage(client, storagePath) {
+  if (!storagePath) return;
+  const { error } = await client.storage.from(EVENT_IMAGES_BUCKET).remove([storagePath]);
+  if (error) throw error;
 }
 
 async function geocodeAddressWithNominatim(query) {
@@ -1743,10 +1838,23 @@ async function handleCreateEventSubmit(submitEvent) {
   try {
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let payloadWithCoordinates;
+    let uploadedImagePath = null;
     try {
       payloadWithCoordinates = await resolveCoordinatesForPayload(payload);
     } catch (geocodingError) {
       setFormFeedback(t("form_error_geocoding_failed"), "error");
+      return;
+    }
+    try {
+      const uploadResult = await uploadEventImage(client, payload.main_image);
+      uploadedImagePath = uploadResult.path;
+      payloadWithCoordinates = {
+        ...payloadWithCoordinates,
+        image_url: uploadResult.publicUrl
+      };
+    } catch (uploadError) {
+      console.error("Image upload failed:", uploadError);
+      setFormFeedback(t("form_error_image_upload"), "error");
       return;
     }
     const insertPayload = buildInsertPayload(payloadWithCoordinates);
@@ -1755,7 +1863,17 @@ async function handleCreateEventSubmit(submitEvent) {
     console.log("[PartyRadar Debug] Event insert data:", data);
     console.log("[PartyRadar Debug] Event insert error:", error);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (uploadedImagePath) {
+        try {
+          await deleteUploadedEventImage(client, uploadedImagePath);
+        } catch (cleanupError) {
+          console.warn("[PartyRadar Debug] Image cleanup failed:", cleanupError);
+          throw new Error(`${error.message || "Insert failed"} ${t("form_error_image_cleanup")}`.trim());
+        }
+      }
+      throw new Error(error.message);
+    }
 
     clearEventForm();
     setFormFeedback(t("form_success"), "success");

@@ -12,6 +12,9 @@ alter table public.events add column if not exists status text;
 alter table public.events add column if not exists featured boolean default false;
 alter table public.events add column if not exists promoted boolean default false;
 
+-- Ensure image URL column exists for event main image uploads.
+alter table public.events add column if not exists image_url text;
+
 -- Normalize status values for existing rows.
 update public.events
 set status = case
@@ -106,3 +109,30 @@ using (
 with check (
   auth.jwt() -> 'app_metadata' ->> 'role' = 'admin'
 );
+
+-- 6) Storage bucket + policies for event image uploads
+insert into storage.buckets (id, name, public)
+values ('event-images', 'event-images', true)
+on conflict (id) do update
+set public = excluded.public;
+
+drop policy if exists "Public can read event images" on storage.objects;
+create policy "Public can read event images"
+on storage.objects
+for select
+to public
+using (bucket_id = 'event-images');
+
+drop policy if exists "Anyone can upload event images" on storage.objects;
+create policy "Anyone can upload event images"
+on storage.objects
+for insert
+to anon, authenticated
+with check (bucket_id = 'event-images');
+
+drop policy if exists "Anyone can delete own event images path" on storage.objects;
+create policy "Anyone can delete own event images path"
+on storage.objects
+for delete
+to anon, authenticated
+using (bucket_id = 'event-images');
