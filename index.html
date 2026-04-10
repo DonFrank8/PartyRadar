@@ -96,6 +96,16 @@
     </div>
   </header>
 
+  <input
+    id="searchInput"
+    type="search"
+    data-i18n-placeholder="filter_search_placeholder"
+    placeholder="Suche Events, Bands oder Locations..."
+    hidden
+    aria-hidden="true"
+    tabindex="-1"
+  >
+
   <main id="discoverSection" class="app-shell">
     <aside class="sidebar">
       <section class="panel panel--status">
@@ -157,8 +167,6 @@
 
       <section id="listSection" class="panel panel--list">
         <form id="filtersForm" class="list-filters" autocomplete="off">
-          <input id="searchInput" type="search" data-i18n-placeholder="filter_search_placeholder" placeholder="Suche Events, Bands oder Locations..." hidden aria-hidden="true" tabindex="-1">
-
           <div class="filter-grid">
             <label class="field">
               <span data-i18n="filter_city">Stadt</span>

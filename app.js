@@ -3588,7 +3588,7 @@ function bindEvents() {
   if (dom.mapSheetFilter) {
     dom.mapSheetFilter.addEventListener("click", () => {
       setViewMode("list", { scroll: true });
-      dom.searchInput?.focus();
+      dom.heroSearchInput?.focus();
     });
   }
   if (dom.mapBottomSheet) {
@@ -3639,7 +3639,7 @@ function bindEvents() {
   if (mapSheetInlineFilterButton) {
     mapSheetInlineFilterButton.addEventListener("click", () => {
       setViewMode("list", { scroll: true });
-      dom.searchInput?.focus();
+      dom.heroSearchInput?.focus();
     });
   }
 
