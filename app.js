@@ -3605,10 +3605,16 @@ function createEventCard(event, index = 0) {
     const clickedInsideCard = target.closest(".event-card");
     if (!clickedInsideCard || clickedInsideCard !== card) return;
 
-    selectEvent(event.id, { flyTo: true, openPopup: true, scrollIntoView: false });
     if (mapSheetIsMobileViewport()) {
       setViewMode("map", { scroll: true });
+      // On mobile we want the full detail panel (with image), not the tiny map marker popup.
+      window.setTimeout(() => {
+        selectEvent(event.id, { flyTo: true, openPopup: false, scrollIntoView: false });
+      }, 40);
+      return;
     }
+
+    selectEvent(event.id, { flyTo: true, openPopup: true, scrollIntoView: false });
   });
   return card;
 }
