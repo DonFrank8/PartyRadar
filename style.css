@@ -156,6 +156,10 @@ body.body--modal-open {
   transform: scale(0.98);
 }
 
+.location-chip.is-pressing {
+  transform: scale(0.98);
+}
+
 .hero h1 {
   animation: heroHeadlineIn 520ms var(--ease-out) both;
 }
@@ -416,6 +420,10 @@ body.body--modal-open {
   box-shadow: 0 16px 34px rgba(2, 5, 14, 0.55);
 }
 
+.featured-card.is-pressing {
+  transform: scale(0.985);
+}
+
 .featured-card__media {
   position: relative;
   min-height: 210px;
@@ -522,6 +530,10 @@ body.body--modal-open {
   transition: transform var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast), background var(--motion-fast);
 }
 
+.quick-category-chip.is-pressing {
+  transform: scale(0.98);
+}
+
 .quick-category-chip:hover {
   border-color: rgba(255, 138, 61, 0.74);
 }
@@ -552,6 +564,10 @@ body.body--modal-open {
   font-size: 0.78rem;
   cursor: pointer;
   transition: background var(--motion-fast), color var(--motion-fast), transform var(--motion-fast);
+}
+
+.view-toggle__button.is-pressing {
+  transform: scale(0.98);
 }
 
 .view-toggle__button:active {
@@ -629,6 +645,10 @@ body.body--modal-open {
   background: transparent;
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
+}
+
+.language-switch__button.is-pressing {
+  transform: scale(0.96);
 }
 
 .language-switch__button:hover {
@@ -885,6 +905,11 @@ body.body--modal-open {
   background-size: 180% 180%;
 }
 
+.button-secondary.is-pressing,
+.button-link.is-pressing {
+  transform: scale(0.98);
+}
+
 .button-secondary:hover {
   border-color: rgba(255, 138, 61, 0.74);
   box-shadow: 0 0 18px rgba(255, 138, 61, 0.2);
@@ -954,6 +979,10 @@ body.body--modal-open {
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
   position: relative;
   overflow: hidden;
+}
+
+.event-card.is-pressing {
+  transform: translateY(-1px) scale(0.985);
 }
 
 .event-card::before {
@@ -1100,6 +1129,10 @@ body.body--modal-open {
   animation: favoritePulse 460ms var(--ease-out);
 }
 
+.event-card__favorite.is-burst {
+  animation: favoritePulse 460ms var(--ease-out);
+}
+
 @keyframes favoritePulse {
   0% {
     transform: scale(0.9);
@@ -1242,6 +1275,12 @@ body.body--modal-open {
     max-height var(--motion-base),
     box-shadow var(--motion-base),
     border-color var(--motion-base);
+}
+
+.map-bottom-sheet.is-snapping {
+  box-shadow:
+    0 0 0 1px rgba(156, 91, 255, 0.32) inset,
+    0 24px 48px rgba(2, 5, 14, 0.6);
 }
 
 .map-bottom-sheet[data-sheet-state="peek"] {
@@ -1393,6 +1432,10 @@ body.body--modal-open {
   transition: border-color var(--motion-fast), box-shadow var(--motion-fast), transform var(--motion-fast), background var(--motion-fast);
 }
 
+.map-sheet-chip.is-pressing {
+  transform: scale(0.98);
+}
+
 .map-sheet-chip:hover {
   border-color: rgba(255, 146, 82, 0.78);
 }
@@ -1529,6 +1572,10 @@ body.body--modal-open {
 
 .marker-pin:hover {
   transform: scale(1.07);
+}
+
+.marker-pin.is-pressing {
+  transform: scale(0.95);
 }
 
 /* Future marker themes:
@@ -1797,6 +1844,7 @@ body.body--modal-open {
   gap: 0.1rem;
   font-size: 0.74rem;
   cursor: pointer;
+  transition: transform var(--motion-fast), color var(--motion-fast), filter var(--motion-fast);
 }
 
 .bottom-nav__item span[aria-hidden="true"] {
@@ -1805,6 +1853,11 @@ body.body--modal-open {
 
 .bottom-nav__item.is-active {
   color: #ffffff;
+}
+
+.bottom-nav__item.is-pressing {
+  transform: scale(0.96);
+  filter: brightness(0.98);
 }
 
 .button-secondary--navigate {
@@ -1880,10 +1933,15 @@ body.body--modal-open {
   border-radius: 999px;
   font-size: 1.05rem;
   cursor: pointer;
+  transition: transform var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
 .modal__close:hover {
   border-color: rgba(255, 159, 85, 0.74);
+}
+
+.modal__close.is-pressing {
+  transform: scale(0.94);
 }
 
 .add-event-form {
@@ -2401,5 +2459,13 @@ body.body--modal-open {
   .hero::before {
     animation: none !important;
     transform: none !important;
+  }
+
+  .is-pressing,
+  .is-burst,
+  .is-snapping {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
   }
 }

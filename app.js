@@ -154,6 +154,22 @@ const MAP_SHEET_DEFAULT_STATE = "half";
 const MAP_SHEET_DRAG_THRESHOLD = 56;
 const MAP_SHEET_VELOCITY_THRESHOLD = 0.55;
 const MAP_SEARCH_AREA_MOVE_THRESHOLD_RATIO = 0.18;
+const SHEET_SNAP_VISUAL_MS = 220;
+const TAP_FEEDBACK_MS = 180;
+const PRESS_FEEDBACK_SELECTOR = [
+  ".button-secondary",
+  ".button-link",
+  ".quick-category-chip",
+  ".view-toggle__button",
+  ".map-sheet-chip",
+  ".bottom-nav__item",
+  ".location-chip",
+  ".language-switch__button",
+  ".event-card",
+  ".featured-card",
+  ".modal__close"
+].join(", ");
+const TAP_FEEDBACK_SELECTOR = `${PRESS_FEEDBACK_SELECTOR}, .event-card__favorite, .marker-pin`;
 
 const NAVIGATION_URL_BUILDERS = {
   google: {
@@ -708,7 +724,8 @@ const state = {
       half: 0,
       full: 0
     },
-    currentTop: 0
+    currentTop: 0,
+    snapVisualTimer: null
   },
   mapSearchArea: {
     visible: false,
@@ -1384,6 +1401,41 @@ function debounce(func, waitMs) {
       func(...args);
     }, waitMs);
   };
+}
+
+function canUseHaptics() {
+  return typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+}
+
+function pulseHaptic(durationMs = 12) {
+  if (!canUseHaptics()) return;
+  navigator.vibrate(durationMs);
+}
+
+function flashPressFeedback(target, durationMs = TAP_FEEDBACK_MS) {
+  if (!(target instanceof Element)) return;
+  target.classList.remove("is-pressing");
+  window.requestAnimationFrame(() => {
+    target.classList.add("is-pressing");
+    window.setTimeout(() => target.classList.remove("is-pressing"), durationMs);
+  });
+}
+
+function attachTapFeedback() {
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target instanceof Element ? event.target.closest(TAP_FEEDBACK_SELECTOR) : null;
+      if (!target) return;
+      flashPressFeedback(target);
+      pulseHaptic(10);
+    },
+    { passive: true }
+  );
+}
+
+function triggerViewModeFeedback() {
+  pulseHaptic(9);
 }
 
 function throttle(func, waitMs) {
@@ -2265,11 +2317,21 @@ function computeMapBottomSheetSnapHeights() {
 function setMapBottomSheetState(nextState, { animate = true } = {}) {
   if (!mapSheetIsAvailable()) return;
   const normalizedState = MAP_SHEET_STATE_ORDER.includes(nextState) ? nextState : MAP_SHEET_DEFAULT_STATE;
+  const previousState = state.mapSheet.state;
   state.mapSheet.state = normalizedState;
   if (!animate) dom.mapBottomSheet.classList.add("is-dragging");
   dom.mapBottomSheet.dataset.sheetState = normalizedState;
   dom.mapBottomSheet.style.transform = "translateY(0)";
   state.mapSheet.currentTop = state.mapSheet.snapPx[normalizedState] || state.mapSheet.snapPx.half || 0;
+  if (previousState !== normalizedState && animate) {
+    pulseHaptic(8);
+    dom.mapBottomSheet.classList.add("is-snapping");
+    if (state.mapSheet.snapVisualTimer) window.clearTimeout(state.mapSheet.snapVisualTimer);
+    state.mapSheet.snapVisualTimer = window.setTimeout(() => {
+      dom.mapBottomSheet.classList.remove("is-snapping");
+      state.mapSheet.snapVisualTimer = null;
+    }, SHEET_SNAP_VISUAL_MS);
+  }
   if (!animate) {
     window.requestAnimationFrame(() => dom.mapBottomSheet.classList.remove("is-dragging"));
   }
@@ -2445,8 +2507,12 @@ function bindMapBottomSheetDrag() {
 
 function setViewMode(nextMode, { scroll = false } = {}) {
   const resolvedMode = nextMode === "map" ? "map" : "list";
+  const previousMode = state.viewMode;
   state.viewMode = resolvedMode;
   document.body.dataset.viewMode = resolvedMode;
+  if (previousMode !== resolvedMode) {
+    triggerViewModeFeedback();
+  }
   updateMapSheetEnabledFlag();
   if (resolvedMode !== "map") {
     clearMapSearchAreaPendingState();
@@ -2916,6 +2982,7 @@ async function updateModerationStatus(eventId, nextStatus, verificationNotes) {
 }
 
 function bindEvents() {
+  attachTapFeedback();
   dom.filtersForm.addEventListener("submit", (event) => event.preventDefault());
   if (dom.heroSearchForm) {
     dom.heroSearchForm.addEventListener("submit", (event) => event.preventDefault());
@@ -3071,6 +3138,7 @@ function bindEvents() {
       if (!target) return;
       if (target.closest(".map-sheet-search__input") || target.closest(".map-sheet-search__select")) {
         if (state.viewMode === "map") {
+          pulseHaptic(8);
           setMapBottomSheetState("full");
           window.setTimeout(() => map?.invalidateSize(), 120);
         }
@@ -3084,6 +3152,14 @@ function bindEvents() {
           setMapBottomSheetState("half");
         }
       }, 120);
+    });
+  }
+
+  const mapSheetInlineFilterButton = document.getElementById("mapSheetInlineFilter");
+  if (mapSheetInlineFilterButton) {
+    mapSheetInlineFilterButton.addEventListener("click", () => {
+      setViewMode("list", { scroll: true });
+      dom.searchInput?.focus();
     });
   }
 
