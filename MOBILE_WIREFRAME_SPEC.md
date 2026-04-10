@@ -1,4 +1,4 @@
-# VIBEON Mobile Wireframe Spec (v1)
+# VIBEON Mobile Wireframe Spec (v2)
 
 This document defines screen-by-screen mobile wireframes with exact spacing, component sizes, and interaction states for direct frontend implementation.
 
@@ -296,11 +296,224 @@ detailsMediaMinHeight = 184 (small) / 210 (default)
 
 ---
 
-## 12) Suggested next iteration (v2 wireframe)
+## 12) Bottom-sheet Map/List Hybrid (v2 core)
 
-If you want the next level app feel, implement:
-- draggable bottom sheet map/list hybrid (peek/half/full)
-- "Search this area" sticky map CTA
-- lightweight haptic bridge for key actions on supported devices
-- image prefetch for top 3 featured cards
+This section is the required interaction model for native-like map discovery.
+
+### 12.1 Screen composition
+- Map is always present as background layer (full canvas).
+- Event list is rendered inside a draggable bottom sheet.
+- Bottom sheet has 3 stable states:
+  - **peek**
+  - **half**
+  - **full**
+
+### 12.2 Sheet geometry (390x844 baseline)
+- Safe top inset assumed: 47
+- Safe bottom inset assumed: 34
+- Header handle area: 28 h
+- Sheet corner radius (top-left/top-right): 22
+- Snap points from top:
+  - `fullTop = safeTop + 12` -> **59 px**
+  - `halfTop = viewportH * 0.46` -> **388 px**
+  - `peekTop = viewportH - (cardPeekH + bottomNavH + safeBottom + 10)`
+- Recommended peek card height:
+  - `cardPeekH = 132`
+- With baseline values:
+  - `peekTop = 844 - (132 + 66 + 34 + 10) = 602`
+
+Implementation token:
+
+```txt
+sheetSnapTop.full = 59
+sheetSnapTop.half = 388
+sheetSnapTop.peek = 602
+sheetCornerRadiusTop = 22
+sheetHandleAreaH = 28
+peekCardH = 132
+```
+
+### 12.3 Drag/gesture behavior
+- Vertical drag is active on:
+  - handle zone
+  - sheet header
+  - empty area above list
+- While list content is scrollable:
+  - drag-to-collapse only when list scrollTop == 0
+- Release decision rules:
+  - Velocity threshold: **0.55 px/ms**
+  - Distance threshold: **56 px**
+  - If velocity exceeds threshold -> move in velocity direction to next snap
+  - Else snap to nearest state by distance
+
+Pseudo rules:
+
+```txt
+if abs(velocityY) > 0.55:
+  snap = velocityY > 0 ? nextLowerState : nextHigherState
+else if abs(deltaY) > 56:
+  snap = deltaY > 0 ? nextLowerState : nextHigherState
+else:
+  snap = nearestState(currentTop)
+```
+
+### 12.4 State behavior and content density
+- **peek**
+  - show 1 primary mini-card + "X events near you" meta
+  - list scrolling disabled
+  - map pins fully interactive
+- **half**
+  - show 3-5 cards
+  - list scroll enabled
+  - map remains visible top ~45%
+- **full**
+  - near full-screen list
+  - map still visible as top strip (optional 48-72 h) or hidden behind sheet
+  - filter/search row sticky inside sheet
+
+### 12.5 Sheet header structure
+- drag handle centered: 36x4, radius 999
+- title row:
+  - left: "Events near you"
+  - right: count badge
+- utility row:
+  - sort chip (Nearby / Soonest)
+  - filter chip
+  - "Map" quick toggle (returns to half state if currently full)
+
+### 12.6 Motion spec
+- Sheet spring:
+  - duration target: 280 ms
+  - easing: cubic-bezier(0.22, 1, 0.36, 1)
+- On snap settle:
+  - apply subtle backdrop blur increase in full state
+  - reduce blur in peek
+
+### 12.7 Keyboard + accessibility behavior
+- When search input in sheet is focused:
+  - force snap to `full`
+  - keep active field 12 px above keyboard
+- Esc/back action:
+  - full -> half
+  - half -> peek
+  - peek -> exit map-focused mode (optional)
+- Touch targets >=44 h
+- announce state change for screen reader:
+  - "Event sheet expanded"
+  - "Event sheet collapsed"
+
+---
+
+## 13) Map/List sync rules (no ambiguity)
+
+### 13.1 Source of truth
+- `selectedEventId` is the single source of truth.
+- Every view derives active state from this id.
+
+### 13.2 Synchronization table
+- Pin tapped:
+  - update `selectedEventId`
+  - center map with offset (to keep pin visible above sheet)
+  - scroll list to matching card
+  - if sheet in peek -> move to half
+- List card tapped:
+  - update `selectedEventId`
+  - pulse selected marker
+  - optionally fly map (max once per 600 ms throttled)
+- Featured card tapped:
+  - update `selectedEventId`
+  - switch to map mode
+  - set sheet to half
+
+### 13.3 Map camera offset
+- Because sheet covers lower map area, marker centering must be offset.
+- For half state recommended vertical offset:
+  - `mapCenterOffsetY = -120 px`
+- For peek:
+  - `mapCenterOffsetY = -70 px`
+- For full:
+  - no recenter unless explicitly requested
+
+---
+
+## 14) "Search this area" CTA spec
+
+### 14.1 Trigger
+- Show CTA when user pans map beyond threshold:
+  - center moved > 18% viewport width OR zoom changed by >=1 level.
+- Hide CTA once new results are fetched and rendered.
+
+### 14.2 Position and style
+- Floating button anchored above sheet:
+  - bottom = sheetTop + 12
+  - centered horizontally
+- Min height 40, radius 999, high contrast neon primary style.
+
+### 14.3 Behavior
+- Tap CTA:
+  1. fetch events for visible bounds
+  2. keep current sheet state
+  3. animate button to loading spinner
+  4. on success: update count + cards + markers
+
+---
+
+## 15) Loading, empty, and failure states (v2)
+
+### 15.1 Sheet loading skeleton
+- Peek: one mini skeleton card
+- Half: 3 skeleton cards
+- Full: 6 skeleton cards + shimmering filter row
+
+### 15.2 Empty state
+- Message: "No events in this area yet"
+- Secondary CTA:
+  - broaden area
+  - switch date
+  - submit event
+
+### 15.3 Failure state
+- Inline retry banner in sheet header:
+  - "Couldn't refresh events. Retry."
+- Keep previous successful data visible.
+
+---
+
+## 16) Haptic + feedback spec (optional native bridge)
+
+- Light haptic:
+  - category selected
+  - sheet snap complete
+- Medium haptic:
+  - navigate pressed
+- Success haptic:
+  - save/favorite confirmed
+
+Fallback for web-only:
+- replace haptics with subtle scale + glow pulse.
+
+---
+
+## 17) Engineering acceptance criteria for v2
+
+- [ ] Bottom sheet supports stable peek/half/full states
+- [ ] Dragging works without fighting list scroll
+- [ ] Pin tap and list tap always stay synchronized
+- [ ] `selectedEventId` is never duplicated in local component state
+- [ ] "Search this area" appears/disappears at defined thresholds
+- [ ] Keyboard focus forces full sheet without overlap bugs
+- [ ] 60fps feel on modern mid-range devices
+- [ ] Reduced-motion mode disables spring-heavy transitions
+- [ ] Existing submit and moderation flows remain unchanged
+
+---
+
+## 18) Suggested implementation order (v2)
+
+1. Introduce sheet state machine + snap calculations
+2. Render list inside sheet + preserve existing card component
+3. Add map offset centering and sync table behavior
+4. Add "Search this area" CTA logic
+5. Add loading/empty/error states in sheet
+6. Add polish motion + optional haptic bridge
 
