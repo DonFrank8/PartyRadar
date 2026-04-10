@@ -154,6 +154,29 @@ const MAP_SHEET_DEFAULT_STATE = "half";
 const MAP_SHEET_DRAG_THRESHOLD = 56;
 const MAP_SHEET_VELOCITY_THRESHOLD = 0.55;
 const MAP_SEARCH_AREA_MOVE_THRESHOLD_RATIO = 0.18;
+const RECURRENCE_OCCURRENCE_HORIZON_DAYS = 120;
+const RECURRENCE_MAX_OCCURRENCES_PER_EVENT = 64;
+const RECURRENCE_TYPE_NONE = "none";
+const RECURRENCE_TYPE_WEEKLY = "weekly";
+const RECURRENCE_TYPE_MONTHLY = "monthly";
+const SHEET_SNAP_VISUAL_MS = 220;
+const VIEW_TRANSITION_MS = 360;
+const TAP_FEEDBACK_MS = 180;
+const PRESS_FEEDBACK_SELECTOR = [
+  ".button-secondary",
+  ".button-link",
+  ".quick-category-chip",
+  ".view-toggle__button",
+  ".map-sheet-chip",
+  ".bottom-nav__item",
+  ".location-chip",
+  ".language-switch__button",
+  ".event-card",
+  ".featured-card",
+  ".modal__close"
+].join(", ");
+const TAP_FEEDBACK_SELECTOR = `${PRESS_FEEDBACK_SELECTOR}, .event-card__favorite, .marker-pin`;
+const TRANSITION_STATE_CLASSES = ["is-transitioning", "is-transitioning-to-map", "is-transitioning-to-list"];
 
 const NAVIGATION_URL_BUILDERS = {
   google: {
@@ -182,6 +205,7 @@ const I18N = {
     hero_chip_vibe: "Live Music • Beach • Lifestyle",
     featured_title: "Featured heute",
     view_list: "Liste",
+    featured_open: "Mehr Infos",
     view_map: "Karte",
     nav_discover: "Entdecken",
     nav_map: "Karte",
@@ -215,18 +239,18 @@ const I18N = {
     list_title: "Für dich entdeckt",
     debug_title: "Debug-Modus",
     debug_table: "Tabelle:",
-    debug_loaded: "Supabase Events:",
+    debug_loaded: "Geladene Events:",
     debug_error: "Fehler:",
     debug_note: "Hinweis:",
     result_count: "{count} Treffer",
-    status_loading: "Lade Events aus Supabase...",
-    status_connected: "Supabase verbunden. {count} Events geladen.",
-    status_no_data: "Keine Daten aus Supabase. Demo-Events geladen.",
-    status_error: "Supabase nicht verfügbar: {message}. Demo-Events aktiv.",
-    status_filtered: "{shown} von {total} Events ({source}).",
-    source_supabase: "Supabase",
-    source_demo_no_data: "Demo-Fallback (Keine Daten aus Supabase)",
-    source_demo_error: "Demo-Fallback (Supabase Fehler)",
+    status_loading: "Events werden geladen...",
+    status_connected: "{count} Events verfügbar.",
+    status_no_data: "Aktuell sind keine Events verfügbar.",
+    status_error: "Events konnten aktuell nicht geladen werden.",
+    status_filtered: "{shown} von {total} Events",
+    source_supabase: "Live",
+    source_demo_no_data: "Keine Live-Daten",
+    source_demo_error: "Temporäre Daten",
     no_events_found: "Keine passenden Vibes gefunden.",
     details_empty: "Wähle ein Event aus, um Details, Bild und Route zu sehen.",
     details_location: "Location",
@@ -240,9 +264,9 @@ const I18N = {
     navigation_unavailable: "Für dieses Event sind keine Navigationsdaten vorhanden.",
     debug_no_error: "Nein",
     debug_note_pending: "Noch keine Entscheidung",
-    debug_note_supabase: "Kein Fallback - Daten aus Supabase aktiv",
-    debug_note_no_data: "Keine Daten aus Supabase",
-    debug_note_error: "Supabase Fehler - Demo-Fallback aktiv",
+    debug_note_supabase: "Live-Daten aktiv",
+    debug_note_no_data: "Keine Live-Daten gefunden",
+    debug_note_error: "Live-Daten derzeit nicht erreichbar",
     button_all: "Alle",
     submit_cta: "Event einreichen",
     admin_quick_access: "Admin",
@@ -295,6 +319,12 @@ const I18N = {
     admin_session_error: "Admin-Session konnte nicht geprüft werden.",
     form_error_required: "Bitte Pflichtfelder ausfüllen.",
     form_error_email: "Bitte eine gültige E-Mail-Adresse angeben.",
+    form_error_recurrence_start_required: "Bitte Startdatum für wiederkehrende Events angeben.",
+    form_error_recurrence_time_required: "Bitte Uhrzeit für wiederkehrende Events angeben.",
+    form_error_recurrence_weekday_required: "Bitte Wochentag für wöchentliche Wiederholung wählen.",
+    form_error_recurrence_day_of_month_required: "Bitte Tag im Monat für monatliche Wiederholung angeben.",
+    form_error_recurrence_end_before_start: "Enddatum darf nicht vor Startdatum liegen.",
+    form_error_recurrence_day_of_month_invalid: "Tag im Monat muss zwischen 1 und 31 liegen.",
     form_error_geocode_pending: "Adresse gespeichert. Koordinaten werden bei der Freigabe ergänzt.",
     form_section_event_details: "Event Details",
     form_section_submitter_details: "Deine Angaben",
@@ -306,6 +336,22 @@ const I18N = {
     form_label_country: "Land",
     form_label_event_date: "Datum",
     form_label_event_time: "Uhrzeit",
+    form_label_recurrence_type: "Event-Typ",
+    form_recurrence_none: "Einmaliges Event",
+    form_recurrence_weekly: "Wöchentlich wiederkehrend",
+    form_recurrence_monthly: "Monatlich wiederkehrend",
+    form_label_recurrence_start_date: "Startdatum Wiederholung",
+    form_label_recurrence_end_date: "Enddatum Wiederholung (optional)",
+    form_label_recurrence_weekday: "Wochentag",
+    form_label_recurrence_day_of_month: "Tag im Monat",
+    form_recurrence_weekday_choose: "Wochentag wählen",
+    weekday_monday: "Montag",
+    weekday_tuesday: "Dienstag",
+    weekday_wednesday: "Mittwoch",
+    weekday_thursday: "Donnerstag",
+    weekday_friday: "Freitag",
+    weekday_saturday: "Samstag",
+    weekday_sunday: "Sonntag",
     form_label_genre: "Genre",
     form_label_price_text: "Preis (EUR)",
     form_label_description: "Beschreibung",
@@ -348,6 +394,7 @@ const I18N = {
     hero_chip_vibe: "Live Music • Beach • Lifestyle",
     featured_title: "Featured tonight",
     view_list: "List",
+    featured_open: "Details",
     view_map: "Map",
     nav_discover: "Discover",
     nav_map: "Map",
@@ -381,18 +428,18 @@ const I18N = {
     list_title: "Curated for you",
     debug_title: "Debug mode",
     debug_table: "Table:",
-    debug_loaded: "Supabase events:",
+    debug_loaded: "Loaded events:",
     debug_error: "Error:",
     debug_note: "Note:",
     result_count: "{count} results",
-    status_loading: "Loading events from Supabase...",
-    status_connected: "Supabase connected. {count} events loaded.",
-    status_no_data: "No data from Supabase. Demo events loaded.",
-    status_error: "Supabase unavailable: {message}. Demo events active.",
-    status_filtered: "{shown} of {total} events ({source}).",
-    source_supabase: "Supabase",
-    source_demo_no_data: "Demo fallback (No data from Supabase)",
-    source_demo_error: "Demo fallback (Supabase error)",
+    status_loading: "Loading events...",
+    status_connected: "{count} events available.",
+    status_no_data: "No events are currently available.",
+    status_error: "Events could not be loaded right now.",
+    status_filtered: "{shown} of {total} events",
+    source_supabase: "Live",
+    source_demo_no_data: "No live data",
+    source_demo_error: "Temporary data",
     no_events_found: "No matching vibes found.",
     details_empty: "Select an event to view details, image and directions.",
     details_location: "Location",
@@ -406,9 +453,9 @@ const I18N = {
     navigation_unavailable: "No navigation data is available for this event.",
     debug_no_error: "No",
     debug_note_pending: "No decision yet",
-    debug_note_supabase: "No fallback - Supabase data active",
-    debug_note_no_data: "No data from Supabase",
-    debug_note_error: "Supabase error - demo fallback active",
+    debug_note_supabase: "Live data active",
+    debug_note_no_data: "No live data found",
+    debug_note_error: "Live data currently unavailable",
     button_all: "All",
     submit_cta: "Submit event",
     admin_quick_access: "Admin",
@@ -461,6 +508,12 @@ const I18N = {
     admin_session_error: "Could not validate admin session.",
     form_error_required: "Please fill in required fields.",
     form_error_email: "Please enter a valid email address.",
+    form_error_recurrence_start_required: "Please provide a recurrence start date.",
+    form_error_recurrence_time_required: "Please provide a start time for recurring events.",
+    form_error_recurrence_weekday_required: "Please choose a weekday for weekly recurrence.",
+    form_error_recurrence_day_of_month_required: "Please provide a day of month for monthly recurrence.",
+    form_error_recurrence_end_before_start: "Recurrence end date cannot be before start date.",
+    form_error_recurrence_day_of_month_invalid: "Day of month must be between 1 and 31.",
     form_error_geocode_pending: "Address saved. Coordinates can be added during moderation.",
     form_section_event_details: "Event Details",
     form_section_submitter_details: "Your Details",
@@ -472,6 +525,22 @@ const I18N = {
     form_label_country: "Country",
     form_label_event_date: "Date",
     form_label_event_time: "Time",
+    form_label_recurrence_type: "Event type",
+    form_recurrence_none: "One-time event",
+    form_recurrence_weekly: "Recurring weekly",
+    form_recurrence_monthly: "Recurring monthly",
+    form_label_recurrence_start_date: "Recurrence start date",
+    form_label_recurrence_end_date: "Recurrence end date (optional)",
+    form_label_recurrence_weekday: "Weekday",
+    form_label_recurrence_day_of_month: "Day of month",
+    form_recurrence_weekday_choose: "Choose weekday",
+    weekday_monday: "Monday",
+    weekday_tuesday: "Tuesday",
+    weekday_wednesday: "Wednesday",
+    weekday_thursday: "Thursday",
+    weekday_friday: "Friday",
+    weekday_saturday: "Saturday",
+    weekday_sunday: "Sunday",
     form_label_genre: "Genre",
     form_label_price_text: "Price (EUR)",
     form_label_description: "Description",
@@ -514,6 +583,7 @@ const I18N = {
     hero_chip_vibe: "Live Music • Beach • Lifestyle",
     featured_title: "Destacados de hoy",
     view_list: "Lista",
+    featured_open: "Más info",
     view_map: "Mapa",
     nav_discover: "Descubrir",
     nav_map: "Mapa",
@@ -547,18 +617,18 @@ const I18N = {
     list_title: "Seleccionado para ti",
     debug_title: "Modo debug",
     debug_table: "Tabla:",
-    debug_loaded: "Eventos Supabase:",
+    debug_loaded: "Eventos cargados:",
     debug_error: "Error:",
     debug_note: "Nota:",
     result_count: "{count} resultados",
-    status_loading: "Cargando eventos de Supabase...",
-    status_connected: "Supabase conectado. {count} eventos cargados.",
-    status_no_data: "Sin datos de Supabase. Eventos demo cargados.",
-    status_error: "Supabase no disponible: {message}. Demo activa.",
-    status_filtered: "{shown} de {total} eventos ({source}).",
-    source_supabase: "Supabase",
-    source_demo_no_data: "Fallback demo (Sin datos de Supabase)",
-    source_demo_error: "Fallback demo (Error de Supabase)",
+    status_loading: "Cargando eventos...",
+    status_connected: "{count} eventos disponibles.",
+    status_no_data: "Actualmente no hay eventos disponibles.",
+    status_error: "No se pudieron cargar eventos en este momento.",
+    status_filtered: "{shown} de {total} eventos",
+    source_supabase: "Live",
+    source_demo_no_data: "Sin datos en vivo",
+    source_demo_error: "Datos temporales",
     no_events_found: "No se encontraron vibes para tu búsqueda.",
     details_empty: "Selecciona un evento para ver detalles, imagen y ruta.",
     details_location: "Ubicación",
@@ -572,9 +642,9 @@ const I18N = {
     navigation_unavailable: "No hay datos de navegación disponibles para este evento.",
     debug_no_error: "No",
     debug_note_pending: "Sin decisión todavía",
-    debug_note_supabase: "Sin fallback - datos de Supabase activos",
-    debug_note_no_data: "Sin datos de Supabase",
-    debug_note_error: "Error de Supabase - fallback demo activo",
+    debug_note_supabase: "Datos en vivo activos",
+    debug_note_no_data: "No se encontraron datos en vivo",
+    debug_note_error: "Datos en vivo no disponibles temporalmente",
     button_all: "Todos",
     submit_cta: "Enviar evento",
     admin_quick_access: "Admin",
@@ -627,6 +697,12 @@ const I18N = {
     admin_session_error: "No se pudo validar la sesión de admin.",
     form_error_required: "Completa los campos obligatorios.",
     form_error_email: "Ingresa un correo electrónico válido.",
+    form_error_recurrence_start_required: "Indica la fecha de inicio para eventos recurrentes.",
+    form_error_recurrence_time_required: "Indica la hora para eventos recurrentes.",
+    form_error_recurrence_weekday_required: "Elige un día de la semana para recurrencia semanal.",
+    form_error_recurrence_day_of_month_required: "Indica el día del mes para recurrencia mensual.",
+    form_error_recurrence_end_before_start: "La fecha de fin no puede ser anterior a la fecha de inicio.",
+    form_error_recurrence_day_of_month_invalid: "El día del mes debe estar entre 1 y 31.",
     form_error_geocode_pending: "Dirección guardada. Las coordenadas se pueden completar durante la moderación.",
     form_section_event_details: "Detalles del evento",
     form_section_submitter_details: "Tus datos",
@@ -638,6 +714,22 @@ const I18N = {
     form_label_country: "País",
     form_label_event_date: "Fecha",
     form_label_event_time: "Hora",
+    form_label_recurrence_type: "Tipo de evento",
+    form_recurrence_none: "Evento único",
+    form_recurrence_weekly: "Recurrente semanal",
+    form_recurrence_monthly: "Recurrente mensual",
+    form_label_recurrence_start_date: "Fecha de inicio de recurrencia",
+    form_label_recurrence_end_date: "Fecha de fin de recurrencia (opcional)",
+    form_label_recurrence_weekday: "Día de la semana",
+    form_label_recurrence_day_of_month: "Día del mes",
+    form_recurrence_weekday_choose: "Elige día de la semana",
+    weekday_monday: "Lunes",
+    weekday_tuesday: "Martes",
+    weekday_wednesday: "Miércoles",
+    weekday_thursday: "Jueves",
+    weekday_friday: "Viernes",
+    weekday_saturday: "Sábado",
+    weekday_sunday: "Domingo",
     form_label_genre: "Género",
     form_label_price_text: "Precio (EUR)",
     form_label_description: "Descripción",
@@ -708,14 +800,16 @@ const state = {
       half: 0,
       full: 0
     },
-    currentTop: 0
+    currentTop: 0,
+    snapVisualTimer: null
   },
   mapSearchArea: {
     visible: false,
     loading: false,
     pendingViewportChange: false,
     lastCenter: null,
-    lastZoom: null
+    lastZoom: null,
+    hideTimer: null
   },
   favoriteEventIds: new Set(),
   lang: "de",
@@ -797,7 +891,18 @@ const dom = {
   formCity: document.getElementById("formCity"),
   formCountry: document.getElementById("formCountry"),
   formDate: document.getElementById("formDate"),
+  formEventDateField: document.getElementById("formEventDateField"),
   formTime: document.getElementById("formTime"),
+  formEventTimeField: document.getElementById("formEventTimeField"),
+  formRecurrenceType: document.getElementById("formRecurrenceType"),
+  formRecurrenceStartDateField: document.getElementById("formRecurrenceStartDateField"),
+  formRecurrenceStartDate: document.getElementById("formRecurrenceStartDate"),
+  formRecurrenceEndDateField: document.getElementById("formRecurrenceEndDateField"),
+  formRecurrenceEndDate: document.getElementById("formRecurrenceEndDate"),
+  formRecurrenceWeekdayField: document.getElementById("formRecurrenceWeekdayField"),
+  formRecurrenceWeekday: document.getElementById("formRecurrenceWeekday"),
+  formRecurrenceDayOfMonthField: document.getElementById("formRecurrenceDayOfMonthField"),
+  formRecurrenceDayOfMonth: document.getElementById("formRecurrenceDayOfMonth"),
   formGenre: document.getElementById("formGenre"),
   formPrice: document.getElementById("formPrice"),
   formMainImage: document.getElementById("formMainImage"),
@@ -810,6 +915,24 @@ let map;
 let markersLayer;
 const markersByEventId = new Map();
 const markerEventsById = new Map();
+let activeMarkerId = null;
+const throttledSelectEventMapFocus = throttle((event, zoom) => {
+  flyToEventWithMapSheetOffset(event, zoom);
+}, 180);
+const debouncedApplyFilters = debounce(() => {
+  applyFilters();
+}, 90);
+const debouncedHandleMapViewportChanged = debounce(() => {
+  handleMapViewportChanged();
+}, 120);
+const throttledFitMapToBounds = throttle((bounds) => {
+  if (!map) return;
+  if (bounds.length) {
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
+  } else {
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }
+}, 140);
 
 function resolveLanguage(langValue) {
   return I18N[langValue] ? langValue : "de";
@@ -945,6 +1068,11 @@ function setStatus(message, tone = "loading") {
 }
 
 function setResultCount(count) {
+  if (!dom.resultCount) return;
+  dom.resultCount.classList.remove("is-updated");
+  window.requestAnimationFrame(() => {
+    dom.resultCount.classList.add("is-updated");
+  });
   dom.resultCount.textContent = t("result_count", { count });
 }
 
@@ -966,6 +1094,97 @@ function setFormSubmitting(isSubmitting) {
   if (!dom.formSubmitButton) return;
   dom.formSubmitButton.disabled = isSubmitting;
   dom.formSubmitButton.textContent = isSubmitting ? t("form_loading") : t("form_submit");
+}
+
+function resetRecurrenceSpecificFields() {
+  if (dom.formRecurrenceStartDate) dom.formRecurrenceStartDate.value = "";
+  if (dom.formRecurrenceEndDate) dom.formRecurrenceEndDate.value = "";
+  if (dom.formRecurrenceWeekday) dom.formRecurrenceWeekday.value = "";
+  if (dom.formRecurrenceDayOfMonth) dom.formRecurrenceDayOfMonth.value = "";
+}
+
+function attachRecurrenceFieldListeners() {
+  if (!dom.formRecurrenceType) return;
+  dom.formRecurrenceType.addEventListener("change", updateRecurrenceFormState);
+  updateRecurrenceFormState();
+}
+
+function updateRecurrenceFormState() {
+  const recurrenceType = normalizeRecurrenceType(dom.formRecurrenceType?.value || RECURRENCE_TYPE_NONE);
+  const isRecurring = recurrenceType !== RECURRENCE_TYPE_NONE;
+  const isWeekly = recurrenceType === RECURRENCE_TYPE_WEEKLY;
+  const isMonthly = recurrenceType === RECURRENCE_TYPE_MONTHLY;
+
+  if (dom.formEventDateField) dom.formEventDateField.hidden = isRecurring;
+  if (dom.formDate) dom.formDate.required = !isRecurring;
+  if (dom.formTime) dom.formTime.required = isRecurring;
+
+  if (dom.formRecurrenceStartDateField) dom.formRecurrenceStartDateField.hidden = !isRecurring;
+  if (dom.formRecurrenceEndDateField) dom.formRecurrenceEndDateField.hidden = !isRecurring;
+  if (dom.formRecurrenceWeekdayField) dom.formRecurrenceWeekdayField.hidden = !isWeekly;
+  if (dom.formRecurrenceDayOfMonthField) dom.formRecurrenceDayOfMonthField.hidden = !isMonthly;
+
+  if (dom.formRecurrenceStartDate) dom.formRecurrenceStartDate.required = isRecurring;
+  if (dom.formRecurrenceWeekday) {
+    dom.formRecurrenceWeekday.required = isWeekly;
+    if (!isWeekly) dom.formRecurrenceWeekday.value = "";
+  }
+  if (dom.formRecurrenceDayOfMonth) {
+    dom.formRecurrenceDayOfMonth.required = isMonthly;
+    if (!isMonthly) dom.formRecurrenceDayOfMonth.value = "";
+  }
+
+  if (!isRecurring) {
+    resetRecurrenceSpecificFields();
+    return;
+  }
+
+  if (dom.formRecurrenceStartDate && !dom.formRecurrenceStartDate.value) {
+    dom.formRecurrenceStartDate.value = dom.formDate?.value || "";
+  }
+}
+
+function normalizeRecurrenceType(rawValue) {
+  const normalized = String(rawValue || RECURRENCE_TYPE_NONE).trim().toLowerCase();
+  if (normalized === RECURRENCE_TYPE_WEEKLY) return RECURRENCE_TYPE_WEEKLY;
+  if (normalized === RECURRENCE_TYPE_MONTHLY) return RECURRENCE_TYPE_MONTHLY;
+  return RECURRENCE_TYPE_NONE;
+}
+
+function normalizeWeekday(rawValue) {
+  const parsed = Number.parseInt(String(rawValue ?? "").trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 6) return null;
+  return parsed;
+}
+
+function normalizeDayOfMonth(rawValue) {
+  const parsed = Number.parseInt(String(rawValue ?? "").trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 31) return null;
+  return parsed;
+}
+
+function parseIsoDateLocal(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const parsed = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
+function formatIsoDateLocal(dateValue) {
+  const year = dateValue.getFullYear();
+  const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+  const day = String(dateValue.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeWeekdayValue(rawValue) {
+  return normalizeWeekday(rawValue);
+}
+
+function normalizeDayOfMonthValue(rawValue) {
+  return normalizeDayOfMonth(rawValue);
 }
 
 function setModerationFeedback(message, tone = "info") {
@@ -1013,6 +1232,9 @@ function normalizeEvent(event, index) {
   const address = String(event.address || event.street || "").trim();
   const postal_code = String(event.postal_code || event.zip || "").trim();
   const geocodingQuery = String(event.geocoding_query || "").trim();
+  const recurrenceType = normalizeRecurrenceType(event.recurrence_type || RECURRENCE_TYPE_NONE);
+  const recurrenceWeekday = normalizeWeekday(event.recurrence_weekday);
+  const recurrenceDayOfMonth = normalizeDayOfMonth(event.recurrence_day_of_month);
   const composedAddress = [address, postal_code, event.city, event.country]
     .filter(Boolean)
     .join(", ");
@@ -1037,6 +1259,15 @@ function normalizeEvent(event, index) {
     submitted_by: event.submitted_by || "",
     verification_notes: event.verification_notes || "",
     geocoding_query: normalizedGeocodingQuery || "",
+    recurrence_type: recurrenceType,
+    recurrence_start_date: String(event.recurrence_start_date || event.event_date || event.date || "").trim() || "",
+    recurrence_end_date: String(event.recurrence_end_date || "").trim() || "",
+    recurrence_weekday: recurrenceType === RECURRENCE_TYPE_WEEKLY ? recurrenceWeekday : null,
+    recurrence_day_of_month: recurrenceType === RECURRENCE_TYPE_MONTHLY ? recurrenceDayOfMonth : null,
+    parent_event_id: String(event.parent_event_id || (event.id ?? `event-${index}`)),
+    occurrence_date: String(event.occurrence_date || event.event_date || event.date || "").trim() || "",
+    occurrence_index: Number(event.occurrence_index || 0),
+    is_recurring_occurrence: Boolean(event.is_recurring_occurrence),
     lat,
     lng
   };
@@ -1058,6 +1289,11 @@ function readFormPayload() {
     postal_code: dom.formPostalCode?.value.trim() || "",
     city: dom.formCity.value.trim(),
     country: dom.formCountry.value.trim(),
+    recurrence_type: normalizeRecurrenceType(dom.formRecurrenceType?.value || RECURRENCE_TYPE_NONE),
+    recurrence_start_date: dom.formRecurrenceStartDate?.value || "",
+    recurrence_end_date: dom.formRecurrenceEndDate?.value || "",
+    recurrence_weekday: dom.formRecurrenceWeekday?.value || "",
+    recurrence_day_of_month: dom.formRecurrenceDayOfMonth?.value || "",
     event_date: dom.formDate.value,
     event_time: dom.formTime.value,
     genre: dom.formGenre.value.trim(),
@@ -1073,6 +1309,8 @@ function readFormPayload() {
 }
 
 function validateFormPayload(payload) {
+  const recurrenceType = normalizeRecurrenceType(payload.recurrence_type);
+  const isRecurring = recurrenceType !== RECURRENCE_TYPE_NONE;
   const requiredFilled =
     payload.name &&
     payload.location_name &&
@@ -1080,12 +1318,40 @@ function validateFormPayload(payload) {
     payload.postal_code &&
     payload.city &&
     payload.country &&
-    payload.event_date &&
+    (isRecurring ? payload.recurrence_start_date : payload.event_date) &&
     payload.genre &&
     payload.submitted_by &&
     payload.contact_email;
   if (!requiredFilled) {
     return { valid: false, message: t("form_error_required") };
+  }
+  if (isRecurring) {
+    if (!payload.recurrence_start_date) {
+      return { valid: false, message: t("form_error_recurrence_start_required") };
+    }
+    if (!payload.event_time) {
+      return { valid: false, message: t("form_error_recurrence_time_required") };
+    }
+    const startDate = parseIsoDateLocal(payload.recurrence_start_date);
+    const endDate = parseIsoDateLocal(payload.recurrence_end_date);
+    if (payload.recurrence_end_date && !endDate) {
+      return { valid: false, message: t("form_error_recurrence_end_before_start") };
+    }
+    if (startDate && endDate && endDate < startDate) {
+      return { valid: false, message: t("form_error_recurrence_end_before_start") };
+    }
+    if (recurrenceType === RECURRENCE_TYPE_WEEKLY && normalizeWeekday(payload.recurrence_weekday) === null) {
+      return { valid: false, message: t("form_error_recurrence_weekday_required") };
+    }
+    if (recurrenceType === RECURRENCE_TYPE_MONTHLY) {
+      const dayOfMonth = normalizeDayOfMonth(payload.recurrence_day_of_month);
+      if (payload.recurrence_day_of_month === "" || payload.recurrence_day_of_month === null) {
+        return { valid: false, message: t("form_error_recurrence_day_of_month_required") };
+      }
+      if (dayOfMonth === null) {
+        return { valid: false, message: t("form_error_recurrence_day_of_month_invalid") };
+      }
+    }
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(payload.contact_email)) {
@@ -1106,6 +1372,10 @@ function clearEventForm() {
   if (!dom.eventForm) return;
   dom.eventForm.reset();
   if (dom.formMainImage) dom.formMainImage.value = "";
+  if (dom.formRecurrenceType) {
+    dom.formRecurrenceType.value = RECURRENCE_TYPE_NONE;
+    updateRecurrenceFormState();
+  }
   // Keep fields empty by default unless user explicitly opted in to remember details.
   applySavedSubmitterProfile();
 }
@@ -1159,6 +1429,14 @@ function persistSubmitterProfile(payload) {
 function buildInsertPayload(payload) {
   // Address is collected now; geocoding can later resolve this into coordinates.
   const geocoding_query = buildGeocodingQuery(payload);
+  const recurrenceType = normalizeRecurrenceType(payload.recurrence_type);
+  const isRecurring = recurrenceType !== RECURRENCE_TYPE_NONE;
+  const recurrenceStartDate = isRecurring ? String(payload.recurrence_start_date || "").trim() || null : null;
+  const recurrenceEndDate = isRecurring ? String(payload.recurrence_end_date || "").trim() || null : null;
+  const recurrenceWeekday = recurrenceType === RECURRENCE_TYPE_WEEKLY ? normalizeWeekday(payload.recurrence_weekday) : null;
+  const recurrenceDayOfMonth =
+    recurrenceType === RECURRENCE_TYPE_MONTHLY ? normalizeDayOfMonth(payload.recurrence_day_of_month) : null;
+  const eventDate = isRecurring ? recurrenceStartDate : payload.event_date;
 
   return {
     name: payload.name,
@@ -1167,8 +1445,13 @@ function buildInsertPayload(payload) {
     postal_code: payload.postal_code || null,
     city: payload.city,
     country: payload.country || null,
-    event_date: payload.event_date,
+    event_date: eventDate,
     event_time: payload.event_time || null,
+    recurrence_type: recurrenceType,
+    recurrence_start_date: recurrenceStartDate,
+    recurrence_end_date: recurrenceEndDate,
+    recurrence_weekday: recurrenceWeekday,
+    recurrence_day_of_month: recurrenceDayOfMonth,
     genre: payload.genre,
     price_text: payload.price_text || null,
     description: payload.description || null,
@@ -1356,6 +1639,100 @@ function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function debounce(func, waitMs) {
+  let timeoutId = null;
+  return (...args) => {
+    if (timeoutId) window.clearTimeout(timeoutId);
+    timeoutId = window.setTimeout(() => {
+      timeoutId = null;
+      func(...args);
+    }, waitMs);
+  };
+}
+
+function canUseHaptics() {
+  return typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+}
+
+function pulseHaptic(durationMs = 12) {
+  if (!canUseHaptics()) return;
+  navigator.vibrate(durationMs);
+}
+
+function flashPressFeedback(target, durationMs = TAP_FEEDBACK_MS) {
+  if (!(target instanceof Element)) return;
+  target.classList.remove("is-pressing");
+  window.requestAnimationFrame(() => {
+    target.classList.add("is-pressing");
+    window.setTimeout(() => target.classList.remove("is-pressing"), durationMs);
+  });
+}
+
+function attachTapFeedback() {
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target instanceof Element ? event.target.closest(TAP_FEEDBACK_SELECTOR) : null;
+      if (!target) return;
+      flashPressFeedback(target);
+      pulseHaptic(10);
+    },
+    { passive: true }
+  );
+}
+
+function triggerViewModeFeedback() {
+  pulseHaptic(9);
+}
+
+function setDocumentTransitionState(nextMode) {
+  const root = document.body;
+  if (!root) return;
+  if (setDocumentTransitionState.timerId) {
+    window.clearTimeout(setDocumentTransitionState.timerId);
+    setDocumentTransitionState.timerId = 0;
+  }
+  TRANSITION_STATE_CLASSES.forEach((className) => root.classList.remove(className));
+  window.requestAnimationFrame(() => {
+    root.classList.add("is-transitioning", nextMode === "map" ? "is-transitioning-to-map" : "is-transitioning-to-list");
+    setDocumentTransitionState.timerId = window.setTimeout(() => {
+      TRANSITION_STATE_CLASSES.forEach((className) => root.classList.remove(className));
+      setDocumentTransitionState.timerId = 0;
+    }, VIEW_TRANSITION_MS);
+  });
+}
+setDocumentTransitionState.timerId = 0;
+
+function throttle(func, waitMs) {
+  let lastRunAt = 0;
+  let trailingTimeoutId = null;
+  let trailingArgs = null;
+  return (...args) => {
+    const now = Date.now();
+    const remaining = waitMs - (now - lastRunAt);
+    trailingArgs = args;
+    if (remaining <= 0) {
+      if (trailingTimeoutId) {
+        window.clearTimeout(trailingTimeoutId);
+        trailingTimeoutId = null;
+      }
+      lastRunAt = now;
+      func(...trailingArgs);
+      trailingArgs = null;
+      return;
+    }
+    if (trailingTimeoutId) return;
+    trailingTimeoutId = window.setTimeout(() => {
+      trailingTimeoutId = null;
+      lastRunAt = Date.now();
+      if (trailingArgs) {
+        func(...trailingArgs);
+        trailingArgs = null;
+      }
+    }, remaining);
+  };
+}
+
 async function geocodingRateLimitWait() {
   if (!GEOCODING_MIN_INTERVAL_MS) return;
   const elapsed = Date.now() - lastGeocodingRequestAt;
@@ -1455,6 +1832,11 @@ async function insertEventWithSchemaFallback(client, payload) {
     "address",
     "postal_code",
     "geocoding_query",
+    "recurrence_day_of_month",
+    "recurrence_weekday",
+    "recurrence_end_date",
+    "recurrence_start_date",
+    "recurrence_type",
     "verification_notes",
     "submitted_by",
     "contact_email",
@@ -1651,10 +2033,7 @@ function eventSearchText(event) {
 }
 
 function sourceLabel() {
-  if (state.sourceType === "supabase") return t("source_supabase");
-  if (state.sourceType === "demo-no-data") return t("source_demo_no_data");
-  if (state.sourceType === "demo-error") return t("source_demo_error");
-  return "-";
+  return "";
 }
 
 function sourceTone() {
@@ -2019,14 +2398,10 @@ function applyFilters() {
   renderFeaturedEvents();
   updateMapSheetSortControls();
   updateMapBottomSheetMeta();
-  setStatus(
-    t("status_filtered", {
-      shown: state.filteredEvents.length,
-      total: state.allEvents.length,
-      source: sourceLabel()
-    }),
-    sourceTone()
-  );
+  if (!state.filteredEvents.length && state.viewMode === "map") {
+    renderMapSheetEmptyState();
+  }
+  setStatus(t("result_count", { count: state.filteredEvents.length }), sourceTone());
   updateLocationChipLabel();
   updateUrlFromFilters();
 }
@@ -2038,6 +2413,147 @@ function eventTimestamp(event) {
   const iso = `${date}T${time}`;
   const parsed = new Date(iso).getTime();
   return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+}
+
+function parseIsoDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const parsed = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
+function formatIsoDate(dateValue) {
+  const year = dateValue.getFullYear();
+  const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+  const day = String(dateValue.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isPastOccurrence(event) {
+  const timestamp = eventTimestamp(event);
+  if (!Number.isFinite(timestamp)) return false;
+  return timestamp < Date.now();
+}
+
+function appendOneTimeOccurrence(list, event) {
+  if (isPastOccurrence(event)) return;
+  list.push({
+    ...event,
+    parent_event_id: event.parent_event_id || event.id,
+    occurrence_date: event.event_date,
+    occurrence_index: Number(event.occurrence_index || 0),
+    is_recurring_occurrence: Boolean(event.is_recurring_occurrence)
+  });
+}
+
+function resolveWeeklyOccurrenceDate(cursorDate, targetWeekday) {
+  const occurrence = new Date(cursorDate);
+  const delta = (targetWeekday - occurrence.getDay() + 7) % 7;
+  occurrence.setDate(occurrence.getDate() + delta);
+  occurrence.setHours(0, 0, 0, 0);
+  return occurrence;
+}
+
+function resolveMonthlyOccurrenceDate(cursorDate, dayOfMonth) {
+  const year = cursorDate.getFullYear();
+  const month = cursorDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  if (dayOfMonth > daysInMonth) return null;
+  const occurrence = new Date(year, month, dayOfMonth);
+  occurrence.setHours(0, 0, 0, 0);
+  return occurrence;
+}
+
+function buildRecurringOccurrences(event) {
+  const type = normalizeRecurrenceType(event.recurrence_type);
+  if (type === RECURRENCE_TYPE_NONE) {
+    const list = [];
+    appendOneTimeOccurrence(list, event);
+    return list;
+  }
+
+  const startDate = parseIsoDate(event.recurrence_start_date || event.event_date);
+  if (!startDate) return [];
+  const endDate = parseIsoDate(event.recurrence_end_date);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const horizon = new Date(now);
+  horizon.setDate(horizon.getDate() + RECURRENCE_OCCURRENCE_HORIZON_DAYS);
+  const cursorStart = startDate > now ? startDate : now;
+  const upperBound = endDate && endDate < horizon ? endDate : horizon;
+  if (cursorStart > upperBound) return [];
+
+  const occurrences = [];
+  const maxOccurrences = RECURRENCE_MAX_OCCURRENCES_PER_EVENT;
+  let occurrenceIndex = 0;
+  let cursor = new Date(cursorStart);
+  cursor.setHours(0, 0, 0, 0);
+
+  if (type === RECURRENCE_TYPE_WEEKLY) {
+    const targetWeekday = normalizeWeekdayValue(event.recurrence_weekday);
+    if (targetWeekday === null) return [];
+    let next = resolveWeeklyOccurrenceDate(cursor, targetWeekday);
+    while (next <= upperBound && occurrences.length < maxOccurrences) {
+      if (next >= startDate) {
+        const occurrenceDate = formatIsoDate(next);
+        const nextEvent = {
+          ...event,
+          id: `${event.id}::${occurrenceDate}`,
+          parent_event_id: event.id,
+          event_date: occurrenceDate,
+          occurrence_date: occurrenceDate,
+          occurrence_index: occurrenceIndex,
+          is_recurring_occurrence: true
+        };
+        if (!isPastOccurrence(nextEvent)) occurrences.push(nextEvent);
+        occurrenceIndex += 1;
+      }
+      next.setDate(next.getDate() + 7);
+      next.setHours(0, 0, 0, 0);
+    }
+    return occurrences;
+  }
+
+  if (type === RECURRENCE_TYPE_MONTHLY) {
+    const dayOfMonth = normalizeDayOfMonthValue(event.recurrence_day_of_month);
+    if (dayOfMonth === null) return [];
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    cursor.setHours(0, 0, 0, 0);
+    while (cursor <= upperBound && occurrences.length < maxOccurrences) {
+      const occurrenceDateObj = resolveMonthlyOccurrenceDate(cursor, dayOfMonth);
+      if (occurrenceDateObj && occurrenceDateObj >= startDate && occurrenceDateObj <= upperBound) {
+        const occurrenceDate = formatIsoDate(occurrenceDateObj);
+        const nextEvent = {
+          ...event,
+          id: `${event.id}::${occurrenceDate}`,
+          parent_event_id: event.id,
+          event_date: occurrenceDate,
+          occurrence_date: occurrenceDate,
+          occurrence_index: occurrenceIndex,
+          is_recurring_occurrence: true
+        };
+        if (!isPastOccurrence(nextEvent)) occurrences.push(nextEvent);
+        occurrenceIndex += 1;
+      }
+      cursor.setMonth(cursor.getMonth() + 1, 1);
+      cursor.setHours(0, 0, 0, 0);
+    }
+    return occurrences;
+  }
+
+  return [];
+}
+
+function expandRecurringEvents(rawEvents) {
+  const expanded = [];
+  rawEvents.forEach((event) => {
+    const occurrences = buildRecurringOccurrences(event);
+    if (!occurrences.length) return;
+    occurrences.forEach((occurrence) => expanded.push(occurrence));
+  });
+  return expanded;
 }
 
 function pickFeaturedEvents() {
@@ -2070,7 +2586,7 @@ function createFeaturedCard(event) {
         <h3>${event.name}</h3>
         <p>${formatDateTime(event)} • ${event.city || event.location_name || "-"}</p>
         <div class="featured-card__actions">
-          <button type="button" class="button-secondary button-secondary--primary" data-action="featured-open">${t("view_list")}</button>
+          <button type="button" class="button-secondary button-secondary--primary" data-action="featured-open">${t("featured_open")}</button>
           <button type="button" class="button-secondary" data-action="featured-navigate" ${navigationUrl ? "" : "disabled"}>${t("details_navigate")}</button>
         </div>
       </div>
@@ -2205,11 +2721,21 @@ function computeMapBottomSheetSnapHeights() {
 function setMapBottomSheetState(nextState, { animate = true } = {}) {
   if (!mapSheetIsAvailable()) return;
   const normalizedState = MAP_SHEET_STATE_ORDER.includes(nextState) ? nextState : MAP_SHEET_DEFAULT_STATE;
+  const previousState = state.mapSheet.state;
   state.mapSheet.state = normalizedState;
   if (!animate) dom.mapBottomSheet.classList.add("is-dragging");
   dom.mapBottomSheet.dataset.sheetState = normalizedState;
   dom.mapBottomSheet.style.transform = "translateY(0)";
   state.mapSheet.currentTop = state.mapSheet.snapPx[normalizedState] || state.mapSheet.snapPx.half || 0;
+  if (previousState !== normalizedState && animate) {
+    pulseHaptic(8);
+    dom.mapBottomSheet.classList.add("is-snapping");
+    if (state.mapSheet.snapVisualTimer) window.clearTimeout(state.mapSheet.snapVisualTimer);
+    state.mapSheet.snapVisualTimer = window.setTimeout(() => {
+      dom.mapBottomSheet.classList.remove("is-snapping");
+      state.mapSheet.snapVisualTimer = null;
+    }, SHEET_SNAP_VISUAL_MS);
+  }
   if (!animate) {
     window.requestAnimationFrame(() => dom.mapBottomSheet.classList.remove("is-dragging"));
   }
@@ -2217,6 +2743,8 @@ function setMapBottomSheetState(nextState, { animate = true } = {}) {
 
 function updateMapBottomSheetMeta() {
   if (!dom.mapBottomSheetCount) return;
+  dom.mapBottomSheetCount.classList.remove("is-updated");
+  window.requestAnimationFrame(() => dom.mapBottomSheetCount.classList.add("is-updated"));
   dom.mapBottomSheetCount.textContent = String(state.filteredEvents.length);
 }
 
@@ -2224,6 +2752,7 @@ function setMapSearchAreaCtaLoading(isLoading) {
   if (!dom.mapSearchAreaCta) return;
   state.mapSearchArea.loading = Boolean(isLoading);
   dom.mapSearchAreaCta.disabled = state.mapSearchArea.loading;
+  dom.mapSearchAreaCta.classList.toggle("is-loading", state.mapSearchArea.loading);
   dom.mapSearchAreaCta.textContent = state.mapSearchArea.loading
     ? t("map_search_loading")
     : t("map_search_area");
@@ -2232,7 +2761,23 @@ function setMapSearchAreaCtaLoading(isLoading) {
 function showMapSearchAreaCta(visible) {
   if (!dom.mapSearchAreaCta) return;
   state.mapSearchArea.visible = Boolean(visible);
-  dom.mapSearchAreaCta.hidden = !state.mapSearchArea.visible;
+  const cta = dom.mapSearchAreaCta;
+  if (state.mapSearchArea.hideTimer) {
+    window.clearTimeout(state.mapSearchArea.hideTimer);
+    state.mapSearchArea.hideTimer = null;
+  }
+
+  if (state.mapSearchArea.visible) {
+    cta.hidden = false;
+    window.requestAnimationFrame(() => cta.classList.add("is-visible"));
+    return;
+  }
+
+  cta.classList.remove("is-visible");
+  state.mapSearchArea.hideTimer = window.setTimeout(() => {
+    if (!state.mapSearchArea.visible) cta.hidden = true;
+    state.mapSearchArea.hideTimer = null;
+  }, 180);
 }
 
 function clearMapSearchAreaPendingState() {
@@ -2250,8 +2795,11 @@ function shouldShowMapSearchAreaCta(nextCenter, nextZoom) {
   const zoomChanged = Math.abs(nextZoom - previousZoom) >= 1;
   if (zoomChanged) return true;
 
-  const latThreshold = 0.02;
-  const lngThreshold = 0.02;
+  const bounds = map?.getBounds?.();
+  const latSpan = Math.abs((bounds?.getNorth?.() || nextCenter.lat) - (bounds?.getSouth?.() || nextCenter.lat));
+  const lngSpan = Math.abs((bounds?.getEast?.() || nextCenter.lng) - (bounds?.getWest?.() || nextCenter.lng));
+  const latThreshold = Math.max(0.004, latSpan * MAP_SEARCH_AREA_MOVE_THRESHOLD_RATIO);
+  const lngThreshold = Math.max(0.004, lngSpan * MAP_SEARCH_AREA_MOVE_THRESHOLD_RATIO);
   const latDelta = Math.abs(nextCenter.lat - previousCenter.lat);
   const lngDelta = Math.abs(nextCenter.lng - previousCenter.lng);
   return latDelta > latThreshold || lngDelta > lngThreshold;
@@ -2272,17 +2820,20 @@ function refreshEventsForVisibleMapBounds() {
   if (!map) return;
   state.mapSearchArea.pendingViewportChange = false;
   setMapSearchAreaCtaLoading(true);
-  try {
-    applyFilters();
-    refreshMapSearchAreaBaseline();
-    showMapSearchAreaCta(false);
-  } finally {
-    setMapSearchAreaCtaLoading(false);
-  }
+  window.setTimeout(() => {
+    try {
+      applyFilters();
+      refreshMapSearchAreaBaseline();
+      showMapSearchAreaCta(false);
+    } finally {
+      setMapSearchAreaCtaLoading(false);
+    }
+  }, 80);
 }
 
 function handleMapViewportChanged() {
   if (!map || state.viewMode !== "map") return;
+  if (state.mapSearchArea.loading) return;
   const nextCenter = map.getCenter();
   const nextZoom = map.getZoom();
   const shouldShow = shouldShowMapSearchAreaCta(nextCenter, nextZoom);
@@ -2362,8 +2913,15 @@ function bindMapBottomSheetDrag() {
 
 function setViewMode(nextMode, { scroll = false } = {}) {
   const resolvedMode = nextMode === "map" ? "map" : "list";
+  const previousMode = state.viewMode;
   state.viewMode = resolvedMode;
   document.body.dataset.viewMode = resolvedMode;
+  if (previousMode !== resolvedMode) {
+    setDocumentTransitionState(resolvedMode);
+  }
+  if (previousMode !== resolvedMode) {
+    triggerViewModeFeedback();
+  }
   updateMapSheetEnabledFlag();
   if (resolvedMode !== "map") {
     clearMapSearchAreaPendingState();
@@ -2469,18 +3027,45 @@ function renderEventList() {
   setResultCount(state.filteredEvents.length);
 
   if (!state.filteredEvents.length) {
-    dom.eventList.innerHTML = `<p class="event-list__empty">${t("no_events_found")}</p>`;
+    dom.eventList.innerHTML = `
+      <div class="event-list__empty event-list__empty-state">
+        <p>${t("no_events_found")}</p>
+        <div class="event-list__empty-actions">
+          <button type="button" class="button-secondary" data-action="empty-reset">${t("filter_reset")}</button>
+          <button type="button" class="button-secondary button-secondary--primary" data-action="empty-open-submit">${t("submit_cta")}</button>
+        </div>
+      </div>
+    `;
     dom.eventDetails.className = "event-details event-details--empty";
-    dom.eventDetails.textContent = t("no_events_found");
+    dom.eventDetails.innerHTML = `
+      <p>${t("details_empty")}</p>
+      <div class="event-details__actions">
+        <button type="button" class="button-secondary" data-action="empty-switch-list">${t("view_list")}</button>
+      </div>
+    `;
     return;
   }
 
   state.filteredEvents.forEach((event, index) => {
     const card = createEventCard(event, index);
+    card.classList.add("event-card--enter");
+    card.style.setProperty("--card-index", String(index));
     if (event.id === state.selectedEventId) card.classList.add("event-card--active");
     dom.eventList.append(card);
     window.requestAnimationFrame(() => card.classList.add("is-ready"));
   });
+}
+
+function renderMapSheetEmptyState() {
+  if (!dom.eventDetails || state.filteredEvents.length) return;
+  dom.eventDetails.className = "event-details event-details--empty";
+  dom.eventDetails.innerHTML = `
+    <p>${t("no_events_found")}</p>
+    <div class="event-details__actions sheet-empty-actions">
+      <button type="button" class="button-secondary" data-action="sheet-clear-filters">${t("filter_reset")}</button>
+      <button type="button" class="button-secondary button-secondary--primary" data-action="sheet-expand-search">${t("sheet_filter")}</button>
+    </div>
+  `;
 }
 
 function createMarkerIcon(event, active = false) {
@@ -2495,10 +3080,22 @@ function createMarkerIcon(event, active = false) {
 }
 
 function syncActiveMarker(eventId) {
-  markersByEventId.forEach((marker, id) => {
-    const event = markerEventsById.get(id);
-    marker.setIcon(createMarkerIcon(event, id === eventId));
-  });
+  if (activeMarkerId === eventId) return;
+  if (activeMarkerId && markersByEventId.has(activeMarkerId)) {
+    const previousMarker = markersByEventId.get(activeMarkerId);
+    const previousEvent = markerEventsById.get(activeMarkerId);
+    if (previousMarker && previousEvent) {
+      previousMarker.setIcon(createMarkerIcon(previousEvent, false));
+    }
+  }
+  if (eventId && markersByEventId.has(eventId)) {
+    const nextMarker = markersByEventId.get(eventId);
+    const nextEvent = markerEventsById.get(eventId);
+    if (nextMarker && nextEvent) {
+      nextMarker.setIcon(createMarkerIcon(nextEvent, true));
+    }
+  }
+  activeMarkerId = eventId || null;
 }
 
 function initMap() {
@@ -2508,7 +3105,7 @@ function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
   markersLayer = L.layerGroup().addTo(map);
-  map.on("moveend", handleMapViewportChanged);
+  map.on("moveend", debouncedHandleMapViewportChanged);
   refreshMapSearchAreaBaseline();
   window.setTimeout(() => map.invalidateSize(), 250);
 }
@@ -2531,9 +3128,11 @@ function markerPopupHtml(event) {
 }
 
 function renderMapMarkers() {
+  if (!map) return;
   markersLayer.clearLayers();
   markersByEventId.clear();
   markerEventsById.clear();
+  activeMarkerId = null;
   const bounds = [];
 
   state.filteredEvents.forEach((event) => {
@@ -2551,8 +3150,7 @@ function renderMapMarkers() {
     bounds.push([event.lat, event.lng]);
   });
 
-  if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
-  else map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  throttledFitMapToBounds(bounds);
 
   syncActiveMarker(state.selectedEventId);
   if (state.viewMode === "map" && mapSheetIsAvailable()) {
@@ -2660,7 +3258,7 @@ function selectEvent(eventId, options = { flyTo: false, openPopup: false, scroll
 
   const marker = markersByEventId.get(event.id);
   if (marker && event.lat !== null && event.lng !== null) {
-    if (options.flyTo) flyToEventWithMapSheetOffset(event, 13);
+    if (options.flyTo) throttledSelectEventMapFocus(event, 13);
     if (options.openPopup) marker.openPopup();
   }
 }
@@ -2820,6 +3418,8 @@ async function updateModerationStatus(eventId, nextStatus, verificationNotes) {
 }
 
 function bindEvents() {
+  attachTapFeedback();
+  attachRecurrenceFieldListeners();
   dom.filtersForm.addEventListener("submit", (event) => event.preventDefault());
   if (dom.heroSearchForm) {
     dom.heroSearchForm.addEventListener("submit", (event) => event.preventDefault());
@@ -2827,58 +3427,58 @@ function bindEvents() {
   dom.searchInput.addEventListener("input", () => {
     syncHeroControlsFromSidebar();
     syncMapSheetControlsFromSidebar();
-    applyFilters();
+    debouncedApplyFilters();
   });
   dom.cityFilter.addEventListener("change", () => {
     syncHeroControlsFromSidebar();
     syncMapSheetControlsFromSidebar();
-    applyFilters();
+    debouncedApplyFilters();
   });
   dom.dateFilter.addEventListener("change", () => {
     syncHeroControlsFromSidebar();
     syncMapSheetControlsFromSidebar();
-    applyFilters();
+    debouncedApplyFilters();
   });
   if (dom.heroSearchInput) {
     dom.heroSearchInput.addEventListener("input", () => {
       syncSidebarFromHeroControls();
       syncMapSheetControlsFromSidebar();
-      applyFilters();
+      debouncedApplyFilters();
     });
   }
   if (dom.heroCityFilter) {
     dom.heroCityFilter.addEventListener("change", () => {
       syncSidebarFromHeroControls();
       syncMapSheetControlsFromSidebar();
-      applyFilters();
+      debouncedApplyFilters();
     });
   }
   if (dom.heroDateFilter) {
     dom.heroDateFilter.addEventListener("change", () => {
       syncSidebarFromHeroControls();
       syncMapSheetControlsFromSidebar();
-      applyFilters();
+      debouncedApplyFilters();
     });
   }
   if (dom.mapSheetSearchInput) {
     dom.mapSheetSearchInput.addEventListener("input", () => {
       syncSidebarFromMapSheetControls();
       syncHeroControlsFromSidebar();
-      applyFilters();
+      debouncedApplyFilters();
     });
   }
   if (dom.mapSheetCityFilter) {
     dom.mapSheetCityFilter.addEventListener("change", () => {
       syncSidebarFromMapSheetControls();
       syncHeroControlsFromSidebar();
-      applyFilters();
+      debouncedApplyFilters();
     });
   }
   if (dom.mapSheetDateFilter) {
     dom.mapSheetDateFilter.addEventListener("change", () => {
       syncSidebarFromMapSheetControls();
       syncHeroControlsFromSidebar();
-      applyFilters();
+      debouncedApplyFilters();
     });
   }
   if (dom.languageSwitch) {
@@ -2940,6 +3540,22 @@ function bindEvents() {
       applyFilters();
     });
   }
+  if (dom.eventList) {
+    dom.eventList.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+      const resetButton = target.closest("button[data-action='empty-reset']");
+      if (resetButton) {
+        resetFilters();
+        return;
+      }
+      const submitButton = target.closest("button[data-action='empty-open-submit']");
+      if (submitButton) {
+        setFormFeedback("");
+        openSubmitModal();
+      }
+    });
+  }
   if (dom.mapSearchAreaCta) {
     dom.mapSearchAreaCta.addEventListener("click", () => {
       refreshEventsForVisibleMapBounds();
@@ -2966,7 +3582,7 @@ function bindEvents() {
   if (dom.mapSheetFilter) {
     dom.mapSheetFilter.addEventListener("click", () => {
       setViewMode("list", { scroll: true });
-      dom.searchInput?.focus();
+      dom.heroSearchInput?.focus();
     });
   }
   if (dom.mapBottomSheet) {
@@ -2975,6 +3591,7 @@ function bindEvents() {
       if (!target) return;
       if (target.closest(".map-sheet-search__input") || target.closest(".map-sheet-search__select")) {
         if (state.viewMode === "map") {
+          pulseHaptic(8);
           setMapBottomSheetState("full");
           window.setTimeout(() => map?.invalidateSize(), 120);
         }
@@ -2988,6 +3605,35 @@ function bindEvents() {
           setMapBottomSheetState("half");
         }
       }, 120);
+    });
+  }
+  if (dom.eventDetails) {
+    dom.eventDetails.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+      const listButton = target.closest("button[data-action='empty-switch-list']");
+      if (listButton) {
+        setViewMode("list", { scroll: true });
+        return;
+      }
+      const sheetResetButton = target.closest("button[data-action='sheet-clear-filters']");
+      if (sheetResetButton) {
+        resetFilters();
+        return;
+      }
+      const sheetExpandButton = target.closest("button[data-action='sheet-expand-search']");
+      if (sheetExpandButton) {
+        setMapBottomSheetState("full");
+        dom.mapSheetSearchInput?.focus();
+      }
+    });
+  }
+
+  const mapSheetInlineFilterButton = document.getElementById("mapSheetInlineFilter");
+  if (mapSheetInlineFilterButton) {
+    mapSheetInlineFilterButton.addEventListener("click", () => {
+      setViewMode("list", { scroll: true });
+      dom.heroSearchInput?.focus();
     });
   }
 
@@ -3039,6 +3685,16 @@ function bindEvents() {
     applyFilters();
   });
 
+  if (dom.formRecurrenceType) {
+    dom.formRecurrenceType.addEventListener("change", updateRecurrenceFormState);
+  }
+  if (dom.formDate) {
+    dom.formDate.addEventListener("change", () => {
+      if (!dom.formRecurrenceStartDate || dom.formRecurrenceStartDate.value) return;
+      dom.formRecurrenceStartDate.value = dom.formDate.value || "";
+    });
+  }
+  updateRecurrenceFormState();
   if (dom.eventForm) {
     dom.eventForm.addEventListener("submit", handleCreateEventSubmit);
   }
@@ -3160,7 +3816,7 @@ async function loadEvents() {
     }
 
     state.moderationEvents = isSessionAdmin(state.adminSession) ? data : [];
-    state.allEvents = data.filter(isApprovedEvent);
+    state.allEvents = expandRecurringEvents(data.filter(isApprovedEvent));
     state.sourceType = "supabase";
     state.debug.fallbackReason = t("debug_note_supabase");
     if (state.isAdminMode && isSessionAdmin(state.adminSession)) {
@@ -3177,7 +3833,7 @@ async function loadEvents() {
     state.debug.hasError = true;
     state.debug.errorMessage = error.message;
     state.debug.fallbackReason = t("debug_note_error");
-    setStatus(t("status_error", { message: error.message }), "warning");
+    setStatus(t("status_error"), "warning");
     updateDebugPanel();
   }
 }
