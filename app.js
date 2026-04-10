@@ -187,6 +187,9 @@ const I18N = {
     nav_map: "Karte",
     nav_submit: "Einreichen",
     sheet_title: "Events in deiner Nahe",
+    sheet_sort_nearby: "Nahe",
+    sheet_sort_soonest: "Bald",
+    sheet_filter: "Filter",
     map_search_area: "In diesem Bereich suchen",
     map_search_loading: "Suche...",
     quick_all: "Alle",
@@ -349,6 +352,9 @@ const I18N = {
     nav_map: "Map",
     nav_submit: "Submit",
     sheet_title: "Events near you",
+    sheet_sort_nearby: "Nearby",
+    sheet_sort_soonest: "Soonest",
+    sheet_filter: "Filter",
     map_search_area: "Search this area",
     map_search_loading: "Searching...",
     quick_all: "All",
@@ -511,6 +517,9 @@ const I18N = {
     nav_map: "Mapa",
     nav_submit: "Enviar",
     sheet_title: "Eventos cerca de ti",
+    sheet_sort_nearby: "Cerca",
+    sheet_sort_soonest: "Pronto",
+    sheet_filter: "Filtros",
     map_search_area: "Buscar en esta zona",
     map_search_loading: "Buscando...",
     quick_all: "Todo",
@@ -685,6 +694,7 @@ const state = {
   availableGenres: [],
   availableDates: [],
   activeGenres: new Set(),
+  discoverySort: "soonest",
   activeQuickCategoryId: "all",
   viewMode: "list",
   mapSheet: {
@@ -726,6 +736,9 @@ const dom = {
   mapBottomSheet: document.getElementById("mapBottomSheet"),
   mapBottomSheetHandle: document.getElementById("mapBottomSheetHandle"),
   mapBottomSheetCount: document.getElementById("mapBottomSheetCount"),
+  mapSheetSortNearby: document.getElementById("mapSheetSortNearby"),
+  mapSheetSortSoonest: document.getElementById("mapSheetSortSoonest"),
+  mapSheetFilter: document.getElementById("mapSheetFilter"),
   locationChip: document.getElementById("locationChip"),
   locationChipLabel: document.getElementById("locationChipLabel"),
   openSubmitModalHero: document.getElementById("openSubmitModalHero"),
@@ -1916,9 +1929,37 @@ function eventMatchesGenres(event, activeGenresLower) {
   return eventGenresLower.some((genre) => activeGenresLower.has(genre));
 }
 
+function applyDiscoverySort(events) {
+  const entries = [...events];
+  if (state.discoverySort === "nearby" && map) {
+    const center = map.getCenter();
+    return entries.sort((a, b) => {
+      const hasGeoA = Number.isFinite(a?.lat) && Number.isFinite(a?.lng);
+      const hasGeoB = Number.isFinite(b?.lat) && Number.isFinite(b?.lng);
+      if (!hasGeoA && !hasGeoB) return eventTimestamp(a) - eventTimestamp(b);
+      if (!hasGeoA) return 1;
+      if (!hasGeoB) return -1;
+      const distanceA = center.distanceTo([a.lat, a.lng]);
+      const distanceB = center.distanceTo([b.lat, b.lng]);
+      if (distanceA !== distanceB) return distanceA - distanceB;
+      return eventTimestamp(a) - eventTimestamp(b);
+    });
+  }
+  return entries.sort((a, b) => eventTimestamp(a) - eventTimestamp(b));
+}
+
+function updateMapSheetSortControls() {
+  if (dom.mapSheetSortNearby) {
+    dom.mapSheetSortNearby.classList.toggle("is-active", state.discoverySort === "nearby");
+  }
+  if (dom.mapSheetSortSoonest) {
+    dom.mapSheetSortSoonest.classList.toggle("is-active", state.discoverySort === "soonest");
+  }
+}
+
 function applyFilters() {
   const filters = getActiveFilters();
-  state.filteredEvents = state.allEvents.filter((event) => {
+  const filtered = state.allEvents.filter((event) => {
     if (filters.city && event.city !== filters.city) return false;
     if (filters.date && event.event_date !== filters.date) return false;
     if (!eventMatchesGenres(event, filters.genres)) return false;
@@ -1930,6 +1971,7 @@ function applyFilters() {
     if (filters.search && !eventSearchText(event).includes(filters.search)) return false;
     return true;
   });
+  state.filteredEvents = applyDiscoverySort(filtered);
 
   if (state.selectedEventId && !state.filteredEvents.some((event) => event.id === state.selectedEventId)) {
     state.selectedEventId = null;
@@ -1939,6 +1981,7 @@ function applyFilters() {
   renderEventList();
   renderMapMarkers();
   renderFeaturedEvents();
+  updateMapSheetSortControls();
   updateMapBottomSheetMeta();
   setStatus(
     t("status_filtered", {
@@ -2837,6 +2880,30 @@ function bindEvents() {
   if (dom.mapSearchAreaCta) {
     dom.mapSearchAreaCta.addEventListener("click", () => {
       refreshEventsForVisibleMapBounds();
+    });
+  }
+  if (dom.mapSheetSortNearby) {
+    dom.mapSheetSortNearby.addEventListener("click", () => {
+      state.discoverySort = "nearby";
+      applyFilters();
+      if (state.selectedEventId) {
+        const selectedEvent = state.filteredEvents.find((event) => event.id === state.selectedEventId);
+        if (selectedEvent) {
+          flyToEventWithMapSheetOffset(selectedEvent, map?.getZoom?.() || 13);
+        }
+      }
+    });
+  }
+  if (dom.mapSheetSortSoonest) {
+    dom.mapSheetSortSoonest.addEventListener("click", () => {
+      state.discoverySort = "soonest";
+      applyFilters();
+    });
+  }
+  if (dom.mapSheetFilter) {
+    dom.mapSheetFilter.addEventListener("click", () => {
+      setViewMode("list", { scroll: true });
+      dom.searchInput?.focus();
     });
   }
 
