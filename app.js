@@ -981,6 +981,11 @@ function setStatus(message, tone = "loading") {
 }
 
 function setResultCount(count) {
+  if (!dom.resultCount) return;
+  dom.resultCount.classList.remove("is-updated");
+  window.requestAnimationFrame(() => {
+    dom.resultCount.classList.add("is-updated");
+  });
   dom.resultCount.textContent = t("result_count", { count });
 }
 
@@ -2131,6 +2136,9 @@ function applyFilters() {
   renderFeaturedEvents();
   updateMapSheetSortControls();
   updateMapBottomSheetMeta();
+  if (!state.filteredEvents.length && state.viewMode === "map") {
+    renderMapSheetEmptyState();
+  }
   setStatus(
     t("status_filtered", {
       shown: state.filteredEvents.length,
@@ -2339,6 +2347,8 @@ function setMapBottomSheetState(nextState, { animate = true } = {}) {
 
 function updateMapBottomSheetMeta() {
   if (!dom.mapBottomSheetCount) return;
+  dom.mapBottomSheetCount.classList.remove("is-updated");
+  window.requestAnimationFrame(() => dom.mapBottomSheetCount.classList.add("is-updated"));
   dom.mapBottomSheetCount.textContent = String(state.filteredEvents.length);
 }
 
@@ -2618,9 +2628,22 @@ function renderEventList() {
   setResultCount(state.filteredEvents.length);
 
   if (!state.filteredEvents.length) {
-    dom.eventList.innerHTML = `<p class="event-list__empty">${t("no_events_found")}</p>`;
+    dom.eventList.innerHTML = `
+      <div class="event-list__empty event-list__empty-state">
+        <p>${t("no_events_found")}</p>
+        <div class="event-list__empty-actions">
+          <button type="button" class="button-secondary" data-action="empty-reset">${t("filter_reset")}</button>
+          <button type="button" class="button-secondary button-secondary--primary" data-action="empty-open-submit">${t("submit_cta")}</button>
+        </div>
+      </div>
+    `;
     dom.eventDetails.className = "event-details event-details--empty";
-    dom.eventDetails.textContent = t("no_events_found");
+    dom.eventDetails.innerHTML = `
+      <p>${t("details_empty")}</p>
+      <div class="event-details__actions">
+        <button type="button" class="button-secondary" data-action="empty-switch-list">${t("view_list")}</button>
+      </div>
+    `;
     return;
   }
 
@@ -2630,6 +2653,18 @@ function renderEventList() {
     dom.eventList.append(card);
     window.requestAnimationFrame(() => card.classList.add("is-ready"));
   });
+}
+
+function renderMapSheetEmptyState() {
+  if (!dom.eventDetails || state.filteredEvents.length) return;
+  dom.eventDetails.className = "event-details event-details--empty";
+  dom.eventDetails.innerHTML = `
+    <p>${t("no_events_found")}</p>
+    <div class="event-details__actions sheet-empty-actions">
+      <button type="button" class="button-secondary" data-action="sheet-clear-filters">${t("filter_reset")}</button>
+      <button type="button" class="button-secondary button-secondary--primary" data-action="sheet-expand-search">${t("sheet_filter")}</button>
+    </div>
+  `;
 }
 
 function createMarkerIcon(event, active = false) {
@@ -3103,6 +3138,22 @@ function bindEvents() {
       applyFilters();
     });
   }
+  if (dom.eventList) {
+    dom.eventList.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+      const resetButton = target.closest("button[data-action='empty-reset']");
+      if (resetButton) {
+        resetFilters();
+        return;
+      }
+      const submitButton = target.closest("button[data-action='empty-open-submit']");
+      if (submitButton) {
+        setFormFeedback("");
+        openSubmitModal();
+      }
+    });
+  }
   if (dom.mapSearchAreaCta) {
     dom.mapSearchAreaCta.addEventListener("click", () => {
       refreshEventsForVisibleMapBounds();
@@ -3152,6 +3203,27 @@ function bindEvents() {
           setMapBottomSheetState("half");
         }
       }, 120);
+    });
+  }
+  if (dom.eventDetails) {
+    dom.eventDetails.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+      const listButton = target.closest("button[data-action='empty-switch-list']");
+      if (listButton) {
+        setViewMode("list", { scroll: true });
+        return;
+      }
+      const sheetResetButton = target.closest("button[data-action='sheet-clear-filters']");
+      if (sheetResetButton) {
+        resetFilters();
+        return;
+      }
+      const sheetExpandButton = target.closest("button[data-action='sheet-expand-search']");
+      if (sheetExpandButton) {
+        setMapBottomSheetState("full");
+        dom.mapSheetSearchInput?.focus();
+      }
     });
   }
 

@@ -780,6 +780,16 @@ body.body--modal-open {
   font-size: 0.82rem;
 }
 
+#resultCount {
+  transition: transform var(--motion-fast), color var(--motion-fast);
+  transform-origin: left center;
+}
+
+#resultCount.is-updated {
+  color: #f5fbff;
+  transform: scale(1.03);
+}
+
 .list-filters {
   display: grid;
   gap: 0.76rem;
@@ -1236,6 +1246,22 @@ body.body--modal-open {
   font-size: 0.9rem;
 }
 
+.event-list__empty-state {
+  display: grid;
+  gap: 0.62rem;
+  text-align: center;
+}
+
+.event-list__empty-state p {
+  margin: 0;
+}
+
+.event-list__empty-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
 .map-section {
   overflow: hidden;
   min-height: 430px;
@@ -1350,6 +1376,13 @@ body.body--modal-open {
   font-size: 0.74rem;
   display: inline-flex;
   align-items: center;
+  transition: transform var(--motion-fast), box-shadow var(--motion-fast), border-color var(--motion-fast);
+}
+
+.map-bottom-sheet__count.is-updated {
+  transform: scale(1.06);
+  border-color: rgba(255, 186, 138, 0.8);
+  box-shadow: 0 0 0 1px rgba(255, 174, 118, 0.38) inset;
 }
 
 .map-bottom-sheet__utility {
@@ -1817,6 +1850,13 @@ body.body--modal-open {
   justify-content: flex-start;
 }
 
+.sheet-empty-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
 .bottom-nav {
   position: fixed;
   left: 0;
@@ -1866,17 +1906,30 @@ body.body--modal-open {
   border-radius: 999px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  box-shadow: 0 12px 28px rgba(50, 167, 255, 0.22);
+  border-color: rgba(255, 179, 125, 0.78);
+  background:
+    linear-gradient(145deg, rgba(255, 138, 61, 0.34), rgba(156, 91, 255, 0.32), rgba(50, 167, 255, 0.3));
+  box-shadow:
+    0 0 0 1px rgba(255, 160, 99, 0.34) inset,
+    0 12px 28px rgba(255, 138, 61, 0.24);
 }
 
 .button-secondary--navigate:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.01);
+  filter: brightness(1.06);
+  box-shadow:
+    0 0 0 1px rgba(255, 184, 136, 0.5) inset,
+    0 14px 30px rgba(255, 138, 61, 0.3);
 }
 
 .button-secondary--navigate:disabled {
   cursor: not-allowed;
   opacity: 0.62;
   box-shadow: none;
+}
+
+.button-secondary--navigate.is-pressing {
+  transform: scale(0.98);
 }
 
 .event-details--empty {
