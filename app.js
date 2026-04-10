@@ -155,6 +155,7 @@ const MAP_SHEET_DRAG_THRESHOLD = 56;
 const MAP_SHEET_VELOCITY_THRESHOLD = 0.55;
 const MAP_SEARCH_AREA_MOVE_THRESHOLD_RATIO = 0.18;
 const SHEET_SNAP_VISUAL_MS = 220;
+const VIEW_TRANSITION_MS = 360;
 const TAP_FEEDBACK_MS = 180;
 const PRESS_FEEDBACK_SELECTOR = [
   ".button-secondary",
@@ -170,6 +171,7 @@ const PRESS_FEEDBACK_SELECTOR = [
   ".modal__close"
 ].join(", ");
 const TAP_FEEDBACK_SELECTOR = `${PRESS_FEEDBACK_SELECTOR}, .event-card__favorite, .marker-pin`;
+const TRANSITION_STATE_CLASSES = ["is-transitioning", "is-transitioning-to-map", "is-transitioning-to-list"];
 
 const NAVIGATION_URL_BUILDERS = {
   google: {
@@ -1443,6 +1445,18 @@ function triggerViewModeFeedback() {
   pulseHaptic(9);
 }
 
+function setDocumentTransitionState(nextMode) {
+  const root = document.body;
+  if (!root) return;
+  TRANSITION_STATE_CLASSES.forEach((className) => root.classList.remove(className));
+  window.requestAnimationFrame(() => {
+    root.classList.add("is-transitioning", nextMode === "map" ? "is-transitioning-to-map" : "is-transitioning-to-list");
+    window.setTimeout(() => {
+      TRANSITION_STATE_CLASSES.forEach((className) => root.classList.remove(className));
+    }, VIEW_TRANSITION_MS);
+  });
+}
+
 function throttle(func, waitMs) {
   let lastRunAt = 0;
   let trailingTimeoutId = null;
@@ -2521,6 +2535,9 @@ function setViewMode(nextMode, { scroll = false } = {}) {
   state.viewMode = resolvedMode;
   document.body.dataset.viewMode = resolvedMode;
   if (previousMode !== resolvedMode) {
+    setDocumentTransitionState(resolvedMode);
+  }
+  if (previousMode !== resolvedMode) {
     triggerViewModeFeedback();
   }
   updateMapSheetEnabledFlag();
@@ -2649,6 +2666,8 @@ function renderEventList() {
 
   state.filteredEvents.forEach((event, index) => {
     const card = createEventCard(event, index);
+    card.classList.add("event-card--enter");
+    card.style.setProperty("--card-index", String(index));
     if (event.id === state.selectedEventId) card.classList.add("event-card--active");
     dom.eventList.append(card);
     window.requestAnimationFrame(() => card.classList.add("is-ready"));
