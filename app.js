@@ -791,7 +791,7 @@ const I18N = {
 
 const LOCALE_MAP = {
   de: "de-DE",
-  en: "en-US",
+  en: "en-GB",
   es: "es-ES"
 };
 
