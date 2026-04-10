@@ -204,10 +204,21 @@
     <section id="mapSection" class="map-column">
       <div class="map-section">
         <div id="map" aria-label="Karte mit Event-Markern"></div>
+        <section id="mapBottomSheet" class="map-bottom-sheet" data-sheet-state="half" aria-label="Event sheet">
+          <div id="mapBottomSheetHandle" class="map-bottom-sheet__handle-zone" aria-hidden="true">
+            <span class="map-bottom-sheet__drag-handle"></span>
+          </div>
+          <header class="map-bottom-sheet__header">
+            <h3 class="map-bottom-sheet__title" data-i18n="sheet_title">Events near you</h3>
+            <span id="mapBottomSheetCount" class="map-bottom-sheet__count">0</span>
+          </header>
+          <div class="map-bottom-sheet__content">
+            <section id="eventDetails" class="event-details event-details--empty">
+              Wähle ein Event aus, um Details, Bild und Route zu sehen.
+            </section>
+          </div>
+        </section>
       </div>
-      <section id="eventDetails" class="event-details event-details--empty">
-        Wähle ein Event aus, um Details, Bild und Route zu sehen.
-      </section>
     </section>
   </main>
 

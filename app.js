@@ -149,6 +149,11 @@ const QUICK_CATEGORY_DEFINITIONS = [
   }
 ];
 
+const MAP_SHEET_STATE_ORDER = ["full", "half", "peek"];
+const MAP_SHEET_DEFAULT_STATE = "half";
+const MAP_SHEET_DRAG_THRESHOLD = 56;
+const MAP_SHEET_VELOCITY_THRESHOLD = 0.55;
+
 const NAVIGATION_URL_BUILDERS = {
   google: {
     byCoordinates: ({ lat, lng }) =>
@@ -180,6 +185,7 @@ const I18N = {
     nav_discover: "Entdecken",
     nav_map: "Karte",
     nav_submit: "Einreichen",
+    sheet_title: "Events in deiner Nahe",
     quick_all: "Alle",
     quick_house: "House",
     quick_latino: "Latino",
@@ -339,6 +345,7 @@ const I18N = {
     nav_discover: "Discover",
     nav_map: "Map",
     nav_submit: "Submit",
+    sheet_title: "Events near you",
     quick_all: "All",
     quick_house: "House",
     quick_latino: "Latino",
@@ -498,6 +505,7 @@ const I18N = {
     nav_discover: "Descubrir",
     nav_map: "Mapa",
     nav_submit: "Enviar",
+    sheet_title: "Eventos cerca de ti",
     quick_all: "Todo",
     quick_house: "House",
     quick_latino: "Latino",
@@ -672,6 +680,16 @@ const state = {
   activeGenres: new Set(),
   activeQuickCategoryId: "all",
   viewMode: "list",
+  mapSheet: {
+    enabled: false,
+    state: "half",
+    snapPx: {
+      peek: 0,
+      half: 0,
+      full: 0
+    },
+    currentTop: 0
+  },
   favoriteEventIds: new Set(),
   lang: "de",
   debug: {
@@ -690,6 +708,9 @@ const dom = {
   discoverSection: document.getElementById("discoverSection"),
   listSection: document.getElementById("listSection"),
   mapSection: document.getElementById("mapSection"),
+  mapBottomSheet: document.getElementById("mapBottomSheet"),
+  mapBottomSheetHandle: document.getElementById("mapBottomSheetHandle"),
+  mapBottomSheetCount: document.getElementById("mapBottomSheetCount"),
   locationChip: document.getElementById("locationChip"),
   locationChipLabel: document.getElementById("locationChipLabel"),
   openSubmitModalHero: document.getElementById("openSubmitModalHero"),
@@ -849,6 +870,10 @@ function switchLanguage(nextLangCode) {
   if (nextLang === state.lang) return;
   state.lang = nextLang;
   applyStaticTranslations();
+  if (dom.mapBottomSheet) {
+    const titleElement = dom.mapBottomSheet.querySelector("[data-i18n='sheet_title']");
+    if (titleElement) titleElement.textContent = t("sheet_title");
+  }
   renderQuickCategories();
   updateFilterOptions();
   syncHeroFilterOptions();
@@ -1899,6 +1924,7 @@ function applyFilters() {
   renderEventList();
   renderMapMarkers();
   renderFeaturedEvents();
+  updateMapBottomSheetMeta();
   setStatus(
     t("status_filtered", {
       shown: state.filteredEvents.length,
@@ -1997,18 +2023,178 @@ function renderFeaturedEvents() {
   });
 }
 
+function mapSheetIsAvailable() {
+  return Boolean(dom.mapBottomSheet && dom.mapSection);
+}
+
+function mapSheetIsMobileViewport() {
+  return window.matchMedia("(max-width: 780px)").matches;
+}
+
+function updateMapSheetEnabledFlag() {
+  state.mapSheet.enabled = mapSheetIsAvailable() && state.viewMode === "map" && mapSheetIsMobileViewport();
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function mapSheetStateIndex(sheetState) {
+  return Math.max(0, MAP_SHEET_STATE_ORDER.indexOf(sheetState));
+}
+
+function getNextMapSheetState(sheetState, direction) {
+  const index = mapSheetStateIndex(sheetState);
+  const nextIndex = clampNumber(index + direction, 0, MAP_SHEET_STATE_ORDER.length - 1);
+  return MAP_SHEET_STATE_ORDER[nextIndex];
+}
+
+function getNearestMapSheetStateFromTop(currentTop) {
+  const entries = Object.entries(state.mapSheet.snapPx);
+  const [closestState] = entries.reduce(
+    (best, [sheetState, top]) => {
+      const distance = Math.abs(currentTop - top);
+      if (distance < best.distance) return { state: sheetState, distance };
+      return best;
+    },
+    { state: MAP_SHEET_DEFAULT_STATE, distance: Number.POSITIVE_INFINITY }
+  );
+  return closestState || MAP_SHEET_DEFAULT_STATE;
+}
+
+function computeMapBottomSheetSnapHeights() {
+  if (!mapSheetIsAvailable()) return;
+  const viewportHeight = window.innerHeight || 844;
+  const mapHeight = dom.mapSection.clientHeight || 430;
+  const safeTop = mapSheetIsMobileViewport() ? 47 : 0;
+  const safeBottom = mapSheetIsMobileViewport() ? 34 : 0;
+  const fullTop = safeTop + 12;
+  const halfTop = Math.round(viewportHeight * 0.46);
+  const peekTop = viewportHeight - (132 + 66 + safeBottom + 10);
+
+  state.mapSheet.snapPx = {
+    full: fullTop,
+    half: halfTop,
+    peek: peekTop
+  };
+
+  const topToSheetHeight = (topPx) =>
+    clampNumber(viewportHeight - topPx, 120, Math.max(120, mapHeight - 8));
+  const fullHeight = topToSheetHeight(fullTop);
+  const halfHeight = topToSheetHeight(halfTop);
+  const peekHeight = topToSheetHeight(peekTop);
+
+  dom.mapBottomSheet.style.setProperty("--sheet-max-h-full", `${fullHeight}px`);
+  dom.mapBottomSheet.style.setProperty("--sheet-max-h-half", `${halfHeight}px`);
+  dom.mapBottomSheet.style.setProperty("--sheet-max-h-peek", `${peekHeight}px`);
+}
+
+function setMapBottomSheetState(nextState, { animate = true } = {}) {
+  if (!mapSheetIsAvailable()) return;
+  const normalizedState = MAP_SHEET_STATE_ORDER.includes(nextState) ? nextState : MAP_SHEET_DEFAULT_STATE;
+  state.mapSheet.state = normalizedState;
+  if (!animate) dom.mapBottomSheet.classList.add("is-dragging");
+  dom.mapBottomSheet.dataset.sheetState = normalizedState;
+  dom.mapBottomSheet.style.transform = "translateY(0)";
+  state.mapSheet.currentTop = state.mapSheet.snapPx[normalizedState] || state.mapSheet.snapPx.half || 0;
+  if (!animate) {
+    window.requestAnimationFrame(() => dom.mapBottomSheet.classList.remove("is-dragging"));
+  }
+}
+
+function updateMapBottomSheetMeta() {
+  if (!dom.mapBottomSheetCount) return;
+  dom.mapBottomSheetCount.textContent = String(state.filteredEvents.length);
+}
+
+function updateMapBottomSheetLayout() {
+  if (!mapSheetIsAvailable()) return;
+  updateMapSheetEnabledFlag();
+  computeMapBottomSheetSnapHeights();
+  setMapBottomSheetState(state.viewMode === "map" ? state.mapSheet.state : "peek", { animate: false });
+}
+
+function bindMapBottomSheetDrag() {
+  if (!dom.mapBottomSheetHandle || !dom.mapBottomSheet) return;
+
+  let dragActive = false;
+  let startY = 0;
+  let startTime = 0;
+  let totalDeltaY = 0;
+
+  const onPointerMove = (event) => {
+    if (!dragActive || !state.mapSheet.enabled) return;
+    const deltaY = event.clientY - startY;
+    totalDeltaY = deltaY;
+    const damped = clampNumber(deltaY, -90, 180);
+    dom.mapBottomSheet.style.transform = `translateY(${damped}px)`;
+  };
+
+  const onPointerUp = (event) => {
+    if (!dragActive) return;
+    dragActive = false;
+    dom.mapBottomSheet.classList.remove("is-dragging");
+
+    const elapsedMs = Math.max(1, performance.now() - startTime);
+    const velocityY = totalDeltaY / elapsedMs;
+    const absoluteDelta = Math.abs(totalDeltaY);
+    const absoluteVelocity = Math.abs(velocityY);
+    const currentState = state.mapSheet.state;
+    const direction = totalDeltaY > 0 ? 1 : -1;
+    let nextState = currentState;
+
+    if (absoluteVelocity > MAP_SHEET_VELOCITY_THRESHOLD) {
+      nextState = getNextMapSheetState(currentState, direction);
+    } else if (absoluteDelta > MAP_SHEET_DRAG_THRESHOLD) {
+      nextState = getNextMapSheetState(currentState, direction);
+    } else {
+      const baseTop = state.mapSheet.snapPx[currentState] || state.mapSheet.snapPx.half;
+      nextState = getNearestMapSheetStateFromTop(baseTop + totalDeltaY);
+    }
+
+    setMapBottomSheetState(nextState);
+    totalDeltaY = 0;
+    dom.mapBottomSheet.style.transform = "translateY(0)";
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
+    if (event.pointerId !== undefined && dom.mapBottomSheetHandle.hasPointerCapture?.(event.pointerId)) {
+      dom.mapBottomSheetHandle.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  dom.mapBottomSheetHandle.addEventListener("pointerdown", (event) => {
+    if (!state.mapSheet.enabled) return;
+    dragActive = true;
+    startY = event.clientY;
+    totalDeltaY = 0;
+    startTime = performance.now();
+    dom.mapBottomSheet.classList.add("is-dragging");
+    dom.mapBottomSheetHandle.setPointerCapture?.(event.pointerId);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+  });
+}
+
 function setViewMode(nextMode, { scroll = false } = {}) {
   const resolvedMode = nextMode === "map" ? "map" : "list";
   state.viewMode = resolvedMode;
   document.body.dataset.viewMode = resolvedMode;
+  updateMapSheetEnabledFlag();
   if (dom.viewToggleList) dom.viewToggleList.classList.toggle("is-active", resolvedMode === "list");
   if (dom.viewToggleMap) dom.viewToggleMap.classList.toggle("is-active", resolvedMode === "map");
   if (dom.bottomNavDiscover) dom.bottomNavDiscover.classList.toggle("is-active", resolvedMode === "list");
   if (dom.bottomNavMap) dom.bottomNavMap.classList.toggle("is-active", resolvedMode === "map");
+  if (mapSheetIsAvailable()) {
+    setMapBottomSheetState(resolvedMode === "map" ? "half" : "peek");
+  }
 
   if (resolvedMode === "map") {
     window.setTimeout(() => {
       if (map) map.invalidateSize();
+      computeMapBottomSheetSnapHeights();
+      setMapBottomSheetState(state.mapSheet.state, { animate: false });
     }, 220);
     if (scroll && dom.mapSection) dom.mapSection.scrollIntoView({ behavior: "smooth", block: "start" });
   } else if (scroll && dom.listSection) {
@@ -2178,12 +2364,18 @@ function renderMapMarkers() {
   else map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
   syncActiveMarker(state.selectedEventId);
+  if (state.viewMode === "map" && mapSheetIsAvailable()) {
+    computeMapBottomSheetSnapHeights();
+  }
 }
 
 function renderEventDetails(event) {
   if (!event) {
     dom.eventDetails.className = "event-details event-details--empty";
     dom.eventDetails.textContent = t("details_empty");
+    if (state.viewMode === "map" && mapSheetIsAvailable()) {
+      setMapBottomSheetState("peek");
+    }
     return;
   }
 
@@ -2254,6 +2446,9 @@ function renderEventDetails(event) {
   window.requestAnimationFrame(() => {
     dom.eventDetails.classList.add("event-details--animate-in");
   });
+  if (state.viewMode === "map" && mapSheetIsAvailable()) {
+    setMapBottomSheetState("half");
+  }
 }
 
 function selectEvent(eventId, options = { flyTo: false, openPopup: false, scrollIntoView: false }) {
@@ -2527,6 +2722,14 @@ function bindEvents() {
       applyFilters();
     });
   }
+
+  window.addEventListener("resize", () => {
+    updateMapBottomSheetLayout();
+    if (state.viewMode === "map") {
+      window.setTimeout(() => map?.invalidateSize(), 140);
+    }
+  });
+
   if (dom.closeSubmitModal) {
     dom.closeSubmitModal.addEventListener("click", (event) => {
       event.preventDefault();
@@ -2716,9 +2919,10 @@ async function startApp() {
   renderQuickCategories();
   renderAdminAuthState(null);
   renderEventDetails(null);
-  setViewMode("list");
-
+  bindMapBottomSheetDrag();
+  updateMapBottomSheetLayout();
   initMap();
+  setViewMode("list");
   bindEvents();
   await checkAdminSession();
   await loadEvents();
@@ -2726,6 +2930,7 @@ async function startApp() {
   applyFiltersFromQuery();
   syncHeroControlsFromSidebar();
   applyFilters();
+  updateMapBottomSheetLayout();
   renderModerationPanel();
 }
 
