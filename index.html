@@ -23,35 +23,33 @@
   </script>
 </head>
 <body>
-  <header class="hero">
-    <div class="hero__content">
-      <div class="hero__topbar">
-        <div class="hero__brand" aria-label="VIBEON Brand">
-          <!-- Active brand icon logo -->
-          <img
-            class="brand-logo brand-logo--icon brand-logo--hero"
-            src="./assets/logo-variants/v2-logo-icon-1024.png"
-            alt="VIBEON Logo"
-            width="44"
-            height="44"
-          >
-          <p class="hero__eyebrow">VIBEON</p>
-        </div>
-        <div class="hero__top-actions">
-          <div id="languageSwitch" class="language-switch" role="group" aria-label="Language switch">
-            <button type="button" class="language-switch__button is-active" data-lang-switch="de">DE</button>
-            <button type="button" class="language-switch__button" data-lang-switch="en">EN</button>
-            <button type="button" class="language-switch__button" data-lang-switch="es">ES</button>
-          </div>
-        </div>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <div class="hero__brand" aria-label="VIBEON Brand">
+        <img
+          class="brand-logo brand-logo--icon brand-logo--hero"
+          src="./assets/logo-variants/v2-logo-icon-1024.png"
+          alt="VIBEON Logo"
+          width="44"
+          height="44"
+        >
+        <p class="hero__eyebrow">VIBEON</p>
       </div>
+      <div id="languageSwitch" class="language-switch" role="group" aria-label="Language switch">
+        <button type="button" class="language-switch__button is-active" data-lang-switch="de">DE</button>
+        <button type="button" class="language-switch__button" data-lang-switch="en">EN</button>
+        <button type="button" class="language-switch__button" data-lang-switch="es">ES</button>
+      </div>
+    </div>
+  </header>
 
+  <section class="hero">
+    <div class="hero__content">
       <div class="hero__center">
         <h1 data-i18n="hero_title">Entdecke, wo dein Vibe passiert.</h1>
         <p class="hero__subtitle" data-i18n="hero_subtitle">
           Live Musik, Beach Vibes und echte Events in deiner Nähe.
         </p>
-
         <form id="heroSearchForm" class="hero-search" autocomplete="off">
           <label class="hero-search__main" for="heroSearchInput">
             <span class="sr-only" data-i18n="hero_search_label">Suche</span>
@@ -64,119 +62,56 @@
             >
           </label>
         </form>
-
-        <div class="hero__chips">
-          <span data-i18n="hero_chip_vibe">Live Music • Beach • Lifestyle</span>
-          <button id="openSubmitModal" type="button" class="button-secondary button-secondary--primary" data-i18n="submit_cta">
-            Event einreichen
-          </button>
-        </div>
       </div>
     </div>
-  </header>
+  </section>
 
   <main class="app-shell">
-    <aside class="sidebar sidebar--filters">
-      <section class="panel panel--filters">
-        <div class="panel__heading">
-          <h2 data-i18n="discover_title">Events entdecken</h2>
+    <aside class="sidebar sidebar--filters panel panel--filters">
+      <form id="filtersForm" class="list-filters" autocomplete="off">
+        <div class="filter-grid">
+          <label class="field">
+            <span data-i18n="filter_city">Stadt</span>
+            <select id="cityFilter">
+              <option value="" data-i18n="filter_city_all">Alle Städte</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span data-i18n="filter_date">Datum</span>
+            <select id="dateFilter">
+              <option value="" data-i18n="filter_date_all">Alle Daten</option>
+            </select>
+          </label>
         </div>
 
-        <form id="filtersForm" class="list-filters" autocomplete="off">
-          <div class="filter-grid">
-            <label class="field">
-              <span data-i18n="filter_city">Stadt</span>
-              <select id="cityFilter">
-                <option value="" data-i18n="filter_city_all">Alle Städte</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span data-i18n="filter_date">Datum</span>
-              <select id="dateFilter">
-                <option value="" data-i18n="filter_date_all">Alle Daten</option>
-              </select>
-            </label>
+        <div class="genre-filter">
+          <div class="genre-filter__head">
+            <span data-i18n="filter_genre">Genres</span>
+            <button id="clearGenresButton" type="button" class="button-link" data-i18n="filter_genre_all">Alle Genres</button>
           </div>
-
-          <div class="genre-filter">
-            <div class="genre-filter__head">
-              <span data-i18n="filter_genre">Genres</span>
-              <button id="clearGenresButton" type="button" class="button-link" data-i18n="filter_genre_all">Alle Genres</button>
-            </div>
-            <div id="genreFilterGroup" class="genre-filter-group" aria-label="Genre Filter"></div>
-          </div>
-
-          <button id="resetFilters" type="button" class="button-secondary" data-i18n="filter_reset">Alle Filter zurücksetzen</button>
-        </form>
-
-        <p id="status" class="status status--loading">Initialisiere Anwendung...</p>
-      </section>
-
-      <section id="moderationPanel" class="panel panel--moderation" hidden>
-        <div class="panel__heading">
-          <h3 data-i18n="admin_title">Moderation</h3>
-          <span id="moderationCount">0 ausstehend</span>
+          <div id="genreFilterGroup" class="genre-filter-group" aria-label="Genre Filter"></div>
         </div>
-        <p class="panel__intro" data-i18n="admin_subtitle">
-          Prüfe eingereichte Events und entscheide über Veröffentlichung.
-        </p>
-        <div id="adminAuthGate" class="admin-auth-gate">
-          <p class="panel__intro" data-i18n="admin_login_hint">
-            Admin-Login erforderlich, um pending Events zu prüfen.
-          </p>
-          <form id="adminAuthForm" class="admin-auth-form" novalidate>
-            <label class="field">
-              <span data-i18n="admin_login_email_label">Admin E-Mail</span>
-              <input
-                id="adminAuthEmail"
-                type="email"
-                data-i18n-placeholder="admin_login_email_placeholder"
-                placeholder="Admin E-Mail"
-                required
-              >
-            </label>
-            <label class="field">
-              <span data-i18n="admin_login_password_label">Passwort</span>
-              <input
-                id="adminAuthPassword"
-                type="password"
-                data-i18n-placeholder="admin_login_password_placeholder"
-                placeholder="Passwort eingeben"
-                required
-              >
-            </label>
-            <button id="adminAuthSubmit" type="submit" class="button-secondary button-secondary--primary" data-i18n="admin_login_submit">
-              Anmelden
-            </button>
-          </form>
-          <p id="adminAuthFeedback" class="add-event-message" hidden></p>
-        </div>
-        <div id="moderationWorkspace" hidden>
-          <div class="panel__heading">
-            <span id="adminSessionInfo"></span>
-            <button id="adminSignOut" type="button" class="button-secondary" data-i18n="admin_logout">Abmelden</button>
-          </div>
-          <p id="moderationFeedback" class="add-event-message" hidden></p>
-          <div id="moderationList" class="moderation-list"></div>
-        </div>
-      </section>
+
+        <button id="resetFilters" type="button" class="button-secondary" data-i18n="filter_reset">Alle Filter zurücksetzen</button>
+      </form>
     </aside>
 
-    <section class="map-column">
-      <div class="map-section">
-        <div id="map" aria-label="Karte mit Event-Markern"></div>
+    <section class="map-section">
+      <div id="map" aria-label="Karte mit Event-Markern"></div>
+    </section>
+
+    <section class="panel panel--events">
+      <div class="panel__heading">
+        <h3 data-i18n="list_title">Event-Liste</h3>
+        <span id="resultCount">0 Treffer</span>
       </div>
-      <section class="panel panel--events">
-        <div class="panel__heading">
-          <h3 data-i18n="list_title">Event-Liste</h3>
-          <span id="resultCount">0 Treffer</span>
-        </div>
-        <div id="eventList" class="event-list"></div>
-      </section>
-      <section id="eventDetails" class="event-details event-details--empty">
-        Wähle ein Event aus, um Details, Bild und Route zu sehen.
-      </section>
+      <p id="status" class="status status--loading">Initialisiere Anwendung...</p>
+      <div id="eventList" class="event-list"></div>
+    </section>
+
+    <section id="eventDetails" class="event-details event-details--empty">
+      Wähle ein Event aus, um Details, Bild und Route zu sehen.
     </section>
   </main>
 
