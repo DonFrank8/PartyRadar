@@ -8,6 +8,9 @@ const ENABLE_AUTO_GEOCODING = true;
 const GEOCODING_PROVIDER = "nominatim";
 const GEOCODING_MIN_INTERVAL_MS = 850;
 const GEOCODING_MAX_RETRIES = 2;
+const ADDRESS_AUTOCOMPLETE_MIN_CHARS = 4;
+const ADDRESS_AUTOCOMPLETE_LIMIT = 5;
+const ADDRESS_AUTOCOMPLETE_DEBOUNCE_MS = 260;
 const MAPBOX_ACCESS_TOKEN = (window.PARTYRADAR_MAPBOX_TOKEN || "").toString().trim();
 const EVENT_IMAGES_BUCKET = "event-images";
 const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -377,6 +380,10 @@ const I18N = {
     form_placeholder_genre: "z. B. Latin, DJ Set",
     form_placeholder_price_text: "z. B. 25 EUR",
     form_placeholder_description: "Kurzbeschreibung des Events",
+    form_hint_address_autocomplete: "Tipp: Straße + Hausnummer eingeben und den passenden Vorschlag auswählen.",
+    form_address_suggestions_aria: "Adressvorschläge",
+    form_address_suggestions_loading: "Suche passende Adressen...",
+    form_address_suggestions_empty: "Keine passenden Adressvorschläge gefunden.",
     install_banner_title: "VIBEON installieren",
     install_banner_text_ios: "In Safari öffnen, auf Teilen tippen und „Zum Home-Bildschirm“ wählen.",
     install_banner_text_android_prompt: "Installiere VIBEON für schnelleren Zugriff direkt vom Homescreen.",
@@ -574,6 +581,10 @@ const I18N = {
     form_placeholder_genre: "e.g. Latin, DJ Set",
     form_placeholder_price_text: "e.g. 25 EUR",
     form_placeholder_description: "Short event description",
+    form_hint_address_autocomplete: "Tip: enter street + number and pick the matching suggestion.",
+    form_address_suggestions_aria: "Address suggestions",
+    form_address_suggestions_loading: "Searching matching addresses...",
+    form_address_suggestions_empty: "No matching address suggestions found.",
     install_banner_title: "Install VIBEON",
     install_banner_text_ios: "Open in Safari, tap Share, then choose Add to Home Screen.",
     install_banner_text_android_prompt: "Install VIBEON for faster access from your home screen.",
@@ -771,6 +782,10 @@ const I18N = {
     form_placeholder_genre: "p. ej. Latin, DJ Set",
     form_placeholder_price_text: "p. ej. 25 EUR",
     form_placeholder_description: "Descripción breve del evento",
+    form_hint_address_autocomplete: "Consejo: escribe calle + numero y elige la sugerencia correcta.",
+    form_address_suggestions_aria: "Sugerencias de direccion",
+    form_address_suggestions_loading: "Buscando direcciones...",
+    form_address_suggestions_empty: "No se encontraron sugerencias de direccion.",
     install_banner_title: "Instala VIBEON",
     install_banner_text_ios: "Ábrelo en Safari, toca Compartir y elige Añadir a pantalla de inicio.",
     install_banner_text_android_prompt: "Instala VIBEON para acceder más rápido desde tu pantalla de inicio.",
@@ -839,6 +854,9 @@ const state = {
     lastCenter: null,
     lastZoom: null,
     hideTimer: null
+  },
+  addressAutocomplete: {
+    loading: false
   },
   favoriteEventIds: new Set(),
   lang: "de",
@@ -916,6 +934,7 @@ const dom = {
   formName: document.getElementById("formName"),
   formLocationName: document.getElementById("formLocationName"),
   formAddress: document.getElementById("formAddress"),
+  formAddressSuggestions: document.getElementById("formAddressSuggestions"),
   formPostalCode: document.getElementById("formPostalCode"),
   formCity: document.getElementById("formCity"),
   formCountry: document.getElementById("formCountry"),
@@ -951,6 +970,13 @@ const markerEventsById = new Map();
 let activeMarkerId = null;
 let deferredInstallPromptEvent = null;
 let installBannerShowTimer = null;
+let selectedAddressSuggestion = null;
+let addressAutocompleteRequestId = 0;
+let currentAddressSuggestions = [];
+let activeAddressSuggestionIndex = -1;
+const debouncedAddressAutocompleteLookup = debounce(() => {
+  void handleAddressAutocompleteLookup();
+}, ADDRESS_AUTOCOMPLETE_DEBOUNCE_MS);
 const throttledSelectEventMapFocus = throttle((event, zoom) => {
   flyToEventWithMapSheetOffset(event, zoom);
 }, 180);
@@ -1087,6 +1113,15 @@ function switchLanguage(nextLangCode) {
     dom.mapSearchAreaCta.textContent = state.mapSearchArea.loading
       ? t("map_search_loading")
       : t("map_search_area");
+  }
+  if (dom.formAddressSuggestions && !dom.formAddressSuggestions.hidden) {
+    if (state.addressAutocomplete.loading) {
+      renderAddressSuggestions([], "loading");
+    } else if (currentAddressSuggestions.length) {
+      renderAddressSuggestions(currentAddressSuggestions, "results");
+    } else {
+      hideAddressSuggestions();
+    }
   }
   updateUrlFromFilters();
 }
@@ -1386,9 +1421,10 @@ function readFormPayload() {
     submitted_by: dom.formSubmittedBy.value.trim(),
     contact_email: dom.formContactEmail.value.trim(),
     description: dom.formDescription.value.trim(),
+    geocoding_query: selectedAddressSuggestion?.title || "",
     image_url: null,
-    lat: null,
-    lng: null
+    lat: Number.isFinite(selectedAddressSuggestion?.lat) ? Number(selectedAddressSuggestion.lat) : null,
+    lng: Number.isFinite(selectedAddressSuggestion?.lng) ? Number(selectedAddressSuggestion.lng) : null
   };
 }
 
@@ -1466,6 +1502,8 @@ async function hasRecurrenceColumns(client) {
 function clearEventForm() {
   if (!dom.eventForm) return;
   dom.eventForm.reset();
+  clearAddressSuggestionSelection();
+  hideAddressSuggestions();
   if (dom.formMainImage) dom.formMainImage.value = "";
   if (dom.formRecurrenceType) {
     dom.formRecurrenceType.value = RECURRENCE_TYPE_NONE;
@@ -1523,7 +1561,7 @@ function persistSubmitterProfile(payload) {
 
 function buildInsertPayload(payload) {
   // Address is collected now; geocoding can later resolve this into coordinates.
-  const geocoding_query = buildGeocodingQuery(payload);
+  const geocoding_query = String(payload.geocoding_query || "").trim() || buildGeocodingQuery(payload);
   const recurrenceType = normalizeRecurrenceType(payload.recurrence_type);
   const isRecurring = recurrenceType !== RECURRENCE_TYPE_NONE;
   const currentYear = new Date().getFullYear();
@@ -1683,6 +1721,125 @@ async function geocodeAddressWithMapbox(query) {
   return { lat, lng };
 }
 
+function escapeHtml(rawValue) {
+  return String(rawValue ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function parseAddressSuggestionComponents(parts = []) {
+  const normalized = {
+    address: "",
+    postal_code: "",
+    city: "",
+    country: ""
+  };
+
+  if (Array.isArray(parts)) {
+    parts.forEach((part) => {
+      const types = Array.isArray(part?.types) ? part.types : [];
+      const name = String(part?.name || "").trim();
+      if (!name) return;
+      if (types.includes("house_number")) {
+        normalized.address = normalized.address ? `${normalized.address} ${name}` : name;
+        return;
+      }
+      if (types.includes("road") || types.includes("pedestrian")) {
+        normalized.address = normalized.address ? `${normalized.address} ${name}` : name;
+        return;
+      }
+      if (!normalized.city && (types.includes("city") || types.includes("town") || types.includes("village"))) {
+        normalized.city = name;
+        return;
+      }
+      if (!normalized.city && (types.includes("municipality") || types.includes("county"))) {
+        normalized.city = name;
+        return;
+      }
+      if (!normalized.postal_code && types.includes("postcode")) {
+        normalized.postal_code = name;
+        return;
+      }
+      if (!normalized.country && types.includes("country")) {
+        normalized.country = name;
+      }
+    });
+    return normalized;
+  }
+
+  const source = parts && typeof parts === "object" ? parts : {};
+  const road = String(source.road || source.pedestrian || source.footway || source.path || "").trim();
+  const houseNumber = String(source.house_number || "").trim();
+  normalized.address = [road, houseNumber].filter(Boolean).join(" ").trim();
+  normalized.postal_code = String(source.postcode || "").trim();
+  normalized.city = String(
+    source.city || source.town || source.village || source.hamlet || source.municipality || source.county || ""
+  ).trim();
+  normalized.country = String(source.country || "").trim();
+
+  return normalized;
+}
+
+function normalizeAddressSuggestion(rawSuggestion) {
+  if (!rawSuggestion) return null;
+  const displayName = String(rawSuggestion.display_name || "").trim();
+  const lat = Number(rawSuggestion.lat);
+  const lng = Number(rawSuggestion.lon);
+  if (!displayName || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const components = parseAddressSuggestionComponents(rawSuggestion.address || []);
+  const fallbackAddress = String(rawSuggestion.name || rawSuggestion.address?.road || "").trim();
+  const fallbackCity = String(rawSuggestion.address?.city || rawSuggestion.address?.town || rawSuggestion.address?.village || "").trim();
+  const fallbackPostal = String(rawSuggestion.address?.postcode || "").trim();
+  const fallbackCountry = String(rawSuggestion.address?.country || "").trim();
+  return {
+    id: String(rawSuggestion.place_id || displayName),
+    title: displayName,
+    subtitle: [fallbackPostal || components.postal_code, fallbackCity || components.city, fallbackCountry || components.country]
+      .filter(Boolean)
+      .join(" • "),
+    lat,
+    lng,
+    address: components.address || fallbackAddress || displayName,
+    postal_code: components.postal_code || fallbackPostal,
+    city: components.city || fallbackCity,
+    country: components.country || fallbackCountry
+  };
+}
+
+async function geocodeAddressAutocompleteWithNominatim(query) {
+  const endpoint = new URL("https://nominatim.openstreetmap.org/search");
+  endpoint.searchParams.set("format", "jsonv2");
+  endpoint.searchParams.set("addressdetails", "1");
+  endpoint.searchParams.set("limit", String(ADDRESS_AUTOCOMPLETE_LIMIT));
+  endpoint.searchParams.set("q", query);
+
+  const response = await fetch(endpoint.toString(), {
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": "de,en,es",
+      "User-Agent": "PartyRadar/1.0 (event-submission address-autocomplete)"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Address autocomplete HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data)) return [];
+  return data.map(normalizeAddressSuggestion).filter(Boolean);
+}
+
+async function getAddressAutocompleteSuggestions(query) {
+  const trimmed = String(query || "").trim();
+  if (trimmed.length < ADDRESS_AUTOCOMPLETE_MIN_CHARS) return [];
+  const suggestions = await geocodeAddressAutocompleteWithNominatim(trimmed);
+  return suggestions.slice(0, ADDRESS_AUTOCOMPLETE_LIMIT);
+}
+
 function buildGeocodingQuery(payload) {
   return [
     payload.address,
@@ -1750,6 +1907,206 @@ function debounce(func, waitMs) {
       func(...args);
     }, waitMs);
   };
+}
+
+function setAddressAutocompleteLoading(isLoading) {
+  state.addressAutocomplete.loading = Boolean(isLoading);
+}
+
+function clearAddressSuggestionsList() {
+  currentAddressSuggestions = [];
+  activeAddressSuggestionIndex = -1;
+}
+
+function hideAddressSuggestions() {
+  if (!dom.formAddressSuggestions) return;
+  clearAddressSuggestionsList();
+  dom.formAddressSuggestions.hidden = true;
+  dom.formAddressSuggestions.innerHTML = "";
+  if (dom.formAddress) {
+    dom.formAddress.setAttribute("aria-expanded", "false");
+    dom.formAddress.removeAttribute("aria-activedescendant");
+  }
+}
+
+function updateAddressSuggestionActiveState() {
+  if (!dom.formAddressSuggestions) return;
+  const options = dom.formAddressSuggestions.querySelectorAll("[data-suggestion-index]");
+  options.forEach((option, index) => {
+    const isActive = index === activeAddressSuggestionIndex;
+    option.classList.toggle("is-active", isActive);
+    option.setAttribute("aria-selected", isActive ? "true" : "false");
+    if (isActive) {
+      const optionId = String(option.id || "");
+      if (optionId && dom.formAddress) dom.formAddress.setAttribute("aria-activedescendant", optionId);
+      option.scrollIntoView({ block: "nearest" });
+    }
+  });
+  if (activeAddressSuggestionIndex < 0 && dom.formAddress) {
+    dom.formAddress.removeAttribute("aria-activedescendant");
+  }
+}
+
+function renderAddressSuggestions(suggestions, mode = "results") {
+  if (!dom.formAddressSuggestions) return;
+  const safeSuggestions = Array.isArray(suggestions) ? suggestions : [];
+  const list = dom.formAddressSuggestions;
+  if (mode === "hidden") {
+    hideAddressSuggestions();
+    return;
+  }
+
+  if (mode === "loading") {
+    clearAddressSuggestionsList();
+    list.hidden = false;
+    list.innerHTML = `<div class="address-autocomplete__option address-autocomplete__option--info">${escapeHtml(
+      t("form_address_suggestions_loading")
+    )}</div>`;
+    if (dom.formAddress) dom.formAddress.setAttribute("aria-expanded", "true");
+    return;
+  }
+
+  if (!safeSuggestions.length) {
+    clearAddressSuggestionsList();
+    list.hidden = false;
+    list.innerHTML = `<div class="address-autocomplete__option address-autocomplete__option--info">${escapeHtml(
+      t("form_address_suggestions_empty")
+    )}</div>`;
+    if (dom.formAddress) dom.formAddress.setAttribute("aria-expanded", "true");
+    return;
+  }
+
+  currentAddressSuggestions = safeSuggestions;
+  activeAddressSuggestionIndex = -1;
+  list.hidden = false;
+  list.innerHTML = safeSuggestions
+    .map((suggestion, index) => {
+      const optionId = `addressSuggestionOption-${index}`;
+      return `
+        <button
+          type="button"
+          id="${optionId}"
+          class="address-autocomplete__option"
+          role="option"
+          aria-selected="false"
+          data-suggestion-index="${index}"
+        >
+          <span class="address-autocomplete__title">${escapeHtml(suggestion.title || suggestion.address || "")}</span>
+          ${
+            suggestion.subtitle
+              ? `<span class="address-autocomplete__meta">${escapeHtml(suggestion.subtitle)}</span>`
+              : ""
+          }
+        </button>
+      `;
+    })
+    .join("");
+  if (dom.formAddress) {
+    dom.formAddress.setAttribute("aria-expanded", "true");
+    dom.formAddress.removeAttribute("aria-activedescendant");
+  }
+}
+
+function applyAddressSuggestion(suggestion) {
+  if (!suggestion) return;
+  selectedAddressSuggestion = suggestion;
+  if (dom.formAddress) dom.formAddress.value = suggestion.address || suggestion.title || "";
+  if (dom.formPostalCode && suggestion.postal_code) dom.formPostalCode.value = suggestion.postal_code;
+  if (dom.formCity && suggestion.city) dom.formCity.value = suggestion.city;
+  if (dom.formCountry && suggestion.country) dom.formCountry.value = suggestion.country;
+  hideAddressSuggestions();
+}
+
+function clearAddressSuggestionSelection() {
+  selectedAddressSuggestion = null;
+}
+
+async function handleAddressAutocompleteLookup() {
+  if (!dom.formAddressSuggestions || !dom.formAddress) return;
+  const normalizedQuery = String(dom.formAddress.value || "").trim();
+  const currentRequestId = addressAutocompleteRequestId;
+  if (normalizedQuery.length < ADDRESS_AUTOCOMPLETE_MIN_CHARS) {
+    setAddressAutocompleteLoading(false);
+    hideAddressSuggestions();
+    return;
+  }
+
+  setAddressAutocompleteLoading(true);
+  renderAddressSuggestions([], "loading");
+  try {
+    const suggestions = await getAddressAutocompleteSuggestions(normalizedQuery);
+    if (currentRequestId !== addressAutocompleteRequestId) return;
+    renderAddressSuggestions(suggestions, suggestions.length ? "results" : "empty");
+  } catch (error) {
+    if (currentRequestId !== addressAutocompleteRequestId) return;
+    console.warn("[PartyRadar Debug] Address autocomplete failed:", error);
+    renderAddressSuggestions([], "empty");
+  } finally {
+    if (currentRequestId === addressAutocompleteRequestId) {
+      setAddressAutocompleteLoading(false);
+    }
+  }
+}
+
+function setupAddressAutocomplete() {
+  if (!dom.formAddress || !dom.formAddressSuggestions) return;
+
+  dom.formAddress.addEventListener("input", () => {
+    clearAddressSuggestionSelection();
+    addressAutocompleteRequestId += 1;
+    debouncedAddressAutocompleteLookup();
+  });
+
+  dom.formAddress.addEventListener("focus", () => {
+    const query = String(dom.formAddress?.value || "").trim();
+    if (query.length < ADDRESS_AUTOCOMPLETE_MIN_CHARS) return;
+    addressAutocompleteRequestId += 1;
+    debouncedAddressAutocompleteLookup();
+  });
+
+  dom.formAddress.addEventListener("keydown", (event) => {
+    if (!currentAddressSuggestions.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      activeAddressSuggestionIndex = Math.min(activeAddressSuggestionIndex + 1, currentAddressSuggestions.length - 1);
+      updateAddressSuggestionActiveState();
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      activeAddressSuggestionIndex = Math.max(activeAddressSuggestionIndex - 1, 0);
+      updateAddressSuggestionActiveState();
+      return;
+    }
+    if (event.key === "Enter" && activeAddressSuggestionIndex >= 0) {
+      event.preventDefault();
+      const selected = currentAddressSuggestions[activeAddressSuggestionIndex];
+      applyAddressSuggestion(selected);
+      return;
+    }
+    if (event.key === "Escape") {
+      hideAddressSuggestions();
+    }
+  });
+
+  dom.formAddressSuggestions.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+
+  dom.formAddressSuggestions.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target.closest("[data-suggestion-index]") : null;
+    if (!target) return;
+    const index = Number(target.getAttribute("data-suggestion-index"));
+    if (!Number.isInteger(index) || index < 0 || index >= currentAddressSuggestions.length) return;
+    applyAddressSuggestion(currentAddressSuggestions[index]);
+  });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+    if (target === dom.formAddress || dom.formAddressSuggestions.contains(target)) return;
+    hideAddressSuggestions();
+  });
 }
 
 function canUseHaptics() {
@@ -1860,6 +2217,12 @@ async function geocodeWithRetry(provider, query) {
 }
 
 async function resolveCoordinatesForPayload(payload) {
+  if (Number.isFinite(payload?.lat) && Number.isFinite(payload?.lng)) {
+    return {
+      ...payload,
+      geocoding_query: String(payload.geocoding_query || "").trim() || buildGeocodingQuery(payload)
+    };
+  }
   if (!ENABLE_AUTO_GEOCODING) return payload;
   const queries = buildGeocodingQueries(payload);
   if (!queries.length) {
@@ -3946,6 +4309,7 @@ function bindEvents() {
       dom.formRecurrenceStartDate.value = dom.formDate.value || "";
     });
   }
+  setupAddressAutocomplete();
   updateRecurrenceFormState();
   if (dom.eventForm) {
     dom.eventForm.addEventListener("submit", handleCreateEventSubmit);

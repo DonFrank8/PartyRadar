@@ -320,8 +320,22 @@
                 type="text"
                 data-i18n-placeholder="form_placeholder_address"
                 placeholder="z. B. Paseo Marítimo 1"
+                autocomplete="street-address"
+                aria-autocomplete="list"
+                aria-controls="formAddressSuggestions"
+                aria-expanded="false"
                 required
               >
+              <div
+                id="formAddressSuggestions"
+                class="address-autocomplete"
+                role="listbox"
+                data-i18n-aria-label="form_address_suggestions_aria"
+                hidden
+              ></div>
+              <small class="field__hint" data-i18n="form_hint_address_autocomplete">
+                Tipp: Tippe Straße + Hausnummer und wähle den passenden Vorschlag.
+              </small>
             </label>
             <label class="field">
               <span data-i18n="form_label_postal_code">PLZ</span>

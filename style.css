@@ -931,6 +931,56 @@ body.body--modal-open {
   resize: vertical;
 }
 
+.address-autocomplete {
+  margin-top: 0.28rem;
+  border: 1px solid rgba(122, 148, 255, 0.35);
+  border-radius: var(--radius-xs);
+  background: rgba(10, 14, 28, 0.96);
+  overflow: hidden;
+}
+
+.address-autocomplete__option {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid rgba(122, 148, 255, 0.22);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 0.55rem 0.68rem;
+  cursor: pointer;
+}
+
+.address-autocomplete__option:first-child {
+  border-top: 0;
+}
+
+.address-autocomplete__option:hover,
+.address-autocomplete__option:focus-visible {
+  outline: none;
+  background: rgba(63, 128, 255, 0.2);
+}
+
+.address-autocomplete__option.is-active {
+  background: rgba(63, 128, 255, 0.26);
+}
+
+.address-autocomplete__option--info {
+  cursor: default;
+  color: var(--text-muted);
+}
+
+.address-autocomplete__title {
+  display: block;
+  font-size: 0.84rem;
+}
+
+.address-autocomplete__meta {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
