@@ -665,6 +665,18 @@ let markersLayer;
 const markersByEventId = new Map();
 const markerEventsById = new Map();
 
+function enforceSinglePublicSearchInput() {
+  const searchInputs = document.querySelectorAll('main input[type="search"]:not(#heroSearchInput)');
+  searchInputs.forEach((input) => {
+    const fieldLabel = input.closest("label.field");
+    if (fieldLabel) {
+      fieldLabel.remove();
+      return;
+    }
+    input.remove();
+  });
+}
+
 function resolveLanguage(langValue) {
   return I18N[langValue] ? langValue : "de";
 }
@@ -2398,6 +2410,7 @@ async function startApp() {
   const requestedLang = resolveLanguage(query.lang);
   state.lang = query.lang ? requestedLang : resolveLanguageFromBrowser(requestedLang);
   state.isAdminMode = resolveAdminMode(query.admin);
+  enforceSinglePublicSearchInput();
   applyStaticTranslations();
   renderAdminAuthState(null);
   renderEventDetails(null);
