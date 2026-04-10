@@ -18,7 +18,8 @@ const state = {
   featureColumns: {
     featured: true,
     promoted: true
-  }
+  },
+  recurrenceColumnsReady: null
 };
 
 const dom = {
@@ -41,6 +42,7 @@ const dom = {
   cityFilter: document.getElementById("filterCity"),
   genreFilter: document.getElementById("filterGenre"),
   statusFilter: document.getElementById("filterStatus"),
+  recurrenceSchemaStatus: document.getElementById("recurrenceSchemaStatus"),
   resetFiltersButton: document.getElementById("resetFiltersButton"),
   eventGrid: document.getElementById("adminEventGrid"),
   emptyState: document.getElementById("adminEmptyState")
@@ -80,6 +82,15 @@ function setGlobalFeedback(message, tone = "info") {
 
 function setAuthFeedback(message, tone = "info") {
   setFeedback(dom.authFeedback, message, tone);
+}
+
+function setRecurrenceSchemaStatus(ready) {
+  if (!dom.recurrenceSchemaStatus) return;
+  const isReady = Boolean(ready);
+  dom.recurrenceSchemaStatus.textContent = isReady
+    ? "Recurrence DB: aktiviert"
+    : "Recurrence DB: fehlt";
+  dom.recurrenceSchemaStatus.className = `card__intro schema-status ${isReady ? "schema-status--ready" : "schema-status--missing"}`;
 }
 
 function escapeHtml(value) {
@@ -378,6 +389,30 @@ async function loadEvents() {
   render();
 }
 
+async function checkRecurrenceSchemaStatus() {
+  try {
+    const client = supabaseClient();
+    const { error } = await client
+      .from("events")
+      .select("recurrence_type,recurrence_start_date,recurrence_end_date,recurrence_weekday,recurrence_day_of_month")
+      .limit(1);
+    if (!error) {
+      state.recurrenceColumnsReady = true;
+      setRecurrenceSchemaStatus(true);
+      return;
+    }
+    const message = String(error?.message || "").toLowerCase();
+    const missing =
+      message.includes("does not exist")
+      && message.includes("recurrence_");
+    state.recurrenceColumnsReady = !missing;
+    setRecurrenceSchemaStatus(!missing);
+  } catch (error) {
+    state.recurrenceColumnsReady = false;
+    setRecurrenceSchemaStatus(false);
+  }
+}
+
 async function checkSession() {
   const client = supabaseClient();
   const { data, error } = await client.auth.getSession();
@@ -554,6 +589,7 @@ async function start() {
   try {
     await checkSession();
     renderAuthState();
+    await checkRecurrenceSchemaStatus();
     if (isSessionAdmin(state.adminSession)) {
       await loadEvents();
       setGlobalFeedback("VIBEON Admin Studio ready.", "success");

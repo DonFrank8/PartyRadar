@@ -3579,14 +3579,18 @@ function createEventCard(event, index = 0) {
   `;
   card.addEventListener("click", (clickEvent) => {
     const target = clickEvent.target instanceof Element ? clickEvent.target : null;
-    const navigateButton = target?.closest("button[data-action='navigate-from-list']");
-    const favoriteButton = target?.closest("button[data-action='favorite-toggle']");
+    if (!target) return;
+
+    const navigateButton = target.closest("button[data-action='navigate-from-list']");
     if (navigateButton) {
+      if (navigateButton.disabled) return;
       clickEvent.preventDefault();
       clickEvent.stopPropagation();
       openNavigationForEvent(event);
       return;
     }
+
+    const favoriteButton = target.closest("button[data-action='favorite-toggle']");
     if (favoriteButton) {
       clickEvent.preventDefault();
       clickEvent.stopPropagation();
@@ -3597,6 +3601,9 @@ function createEventCard(event, index = 0) {
       window.requestAnimationFrame(() => favoriteButton.classList.add("is-burst"));
       return;
     }
+
+    const clickedInsideCard = target.closest(".event-card");
+    if (!clickedInsideCard || clickedInsideCard !== card) return;
 
     selectEvent(event.id, { flyTo: true, openPopup: true, scrollIntoView: false });
     if (mapSheetIsMobileViewport()) {

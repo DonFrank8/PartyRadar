@@ -160,6 +160,51 @@ body {
   gap: 0.8rem;
 }
 
+.schema-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 28px;
+  margin: 0.2rem 0 0;
+  padding: 0.22rem 0.66rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(10, 14, 27, 0.84);
+  color: var(--muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.01em;
+  width: fit-content;
+}
+
+.schema-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 191, 103, 0.8);
+  box-shadow: 0 0 0 1px rgba(255, 191, 103, 0.28);
+}
+
+.schema-status.schema-status--ready {
+  border-color: rgba(67, 216, 163, 0.55);
+  color: #dcfff3;
+}
+
+.schema-status.schema-status--ready::before {
+  background: rgba(67, 216, 163, 0.95);
+  box-shadow: 0 0 0 1px rgba(67, 216, 163, 0.3);
+}
+
+.schema-status.schema-status--missing {
+  border-color: rgba(255, 122, 143, 0.55);
+  color: #ffe0e5;
+}
+
+.schema-status.schema-status--missing::before {
+  background: rgba(255, 122, 143, 0.95);
+  box-shadow: 0 0 0 1px rgba(255, 122, 143, 0.3);
+}
+
 .card--toolbar {
   position: sticky;
   top: 0.58rem;
