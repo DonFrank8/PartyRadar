@@ -1448,14 +1448,20 @@ function triggerViewModeFeedback() {
 function setDocumentTransitionState(nextMode) {
   const root = document.body;
   if (!root) return;
+  if (setDocumentTransitionState.timerId) {
+    window.clearTimeout(setDocumentTransitionState.timerId);
+    setDocumentTransitionState.timerId = 0;
+  }
   TRANSITION_STATE_CLASSES.forEach((className) => root.classList.remove(className));
   window.requestAnimationFrame(() => {
     root.classList.add("is-transitioning", nextMode === "map" ? "is-transitioning-to-map" : "is-transitioning-to-list");
-    window.setTimeout(() => {
+    setDocumentTransitionState.timerId = window.setTimeout(() => {
       TRANSITION_STATE_CLASSES.forEach((className) => root.classList.remove(className));
+      setDocumentTransitionState.timerId = 0;
     }, VIEW_TRANSITION_MS);
   });
 }
+setDocumentTransitionState.timerId = 0;
 
 function throttle(func, waitMs) {
   let lastRunAt = 0;
