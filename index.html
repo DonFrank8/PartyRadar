@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="theme-color" content="#020617">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Marcha">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" href="./assets/marcha-logo-icon.png">
+  <title>Marcha | Live-Musik &amp; Events entdecken</title>
+  <meta name="description" content="Entdecke mit Marcha Live-Musik, DJs, Clubs und Events auf einer interaktiven Karte — kuratiert und nah bei dir.">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script>
+    (function () {
+      var cacheBuster = String(Date.now());
+      window.PARTYRADAR_BUILD = "live";
+      window.PARTYRADAR_CACHE_BUSTER = cacheBuster;
+      var stylesheet = document.createElement("link");
+      stylesheet.rel = "stylesheet";
+      stylesheet.href = "./style.css?v=" + encodeURIComponent(cacheBuster);
+      document.head.appendChild(stylesheet);
+    })();
+  </script>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__content">
+      <div class="hero__topbar">
+        <div class="hero__brand" aria-label="Marcha">
+          <img
+            class="brand-logo brand-logo--full hero-brand__logo hero-brand__logo--full"
+            src="./assets/marcha-logo.png"
+            alt="Marcha"
+            width="140"
+            height="34"
+          >
+          <img
+            class="brand-logo brand-logo--icon hero-brand__logo hero-brand__logo--icon"
+            src="./assets/marcha-logo-icon.png"
+            alt="Marcha"
+            width="40"
+            height="40"
+          >
+        </div>
+        <div class="hero__top-actions">
+          <div id="languageSwitch" class="language-switch" role="group" aria-label="Language switch">
+            <button type="button" class="language-switch__button is-active" data-lang-switch="de">DE</button>
+            <button type="button" class="language-switch__button" data-lang-switch="en">EN</button>
+            <button type="button" class="language-switch__button" data-lang-switch="es">ES</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero__center">
+        <div class="hero__utility-row">
+          <button id="locationChip" type="button" class="location-chip">
+            <span aria-hidden="true">📍</span>
+            <span id="locationChipLabel" data-i18n="hero_location_label">Near you</span>
+          </button>
+          <button id="openSubmitModalHero" type="button" class="button-secondary" data-i18n="submit_cta">Event hinzufügen</button>
+        </div>
+
+        <h1 data-i18n="hero_title">Events today near you</h1>
+        <p class="hero__subtitle" data-i18n="hero_subtitle">
+          Local live music, DJs, beach bars and curated events around you.
+        </p>
+
+        <form id="heroSearchForm" class="hero-search" autocomplete="off">
+          <label class="hero-search__main" for="heroSearchInput">
+            <span class="sr-only" data-i18n="hero_search_label">Suche</span>
+            <input
+              id="heroSearchInput"
+              class="hero-search__input"
+              type="search"
+              data-i18n-placeholder="hero_search_placeholder"
+              placeholder="Events, Künstler:innen, Locations suchen..."
+            >
+          </label>
+        </form>
+
+        <section class="featured" aria-labelledby="featuredEventsTitle">
+          <div class="featured__head">
+            <h2 id="featuredEventsTitle" data-i18n="featured_title">Featured tonight</h2>
+            <span id="featuredCount" class="featured__count">0</span>
+          </div>
+          <div id="featuredCarousel" class="featured-carousel" aria-label="Featured events carousel"></div>
+        </section>
+
+        <div class="quick-controls">
+          <div id="quickCategoryRail" class="quick-category-rail" aria-label="Quick categories"></div>
+          <div class="view-toggle" role="group" aria-label="View mode">
+            <button id="viewToggleList" type="button" class="view-toggle__button is-active" data-view-mode="list" data-i18n="view_list">List</button>
+            <button id="viewToggleMap" type="button" class="view-toggle__button" data-view-mode="map" data-i18n="view_map">Map</button>
+          </div>
+        </div>
+
+        <div class="hero__chips">
+          <span data-i18n="hero_chip_vibe">Live Music • Beach • Lifestyle</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <input
+    id="searchInput"
+    type="search"
+    data-i18n-placeholder="filter_search_placeholder"
+    placeholder="Events, Künstler:innen, Locations suchen..."
+    hidden
+    aria-hidden="true"
+    tabindex="-1"
+  >
+
+  <main id="discoverSection" class="app-shell">
+    <aside class="sidebar">
+      <section class="panel panel--status">
+        <h2 data-i18n="discover_title">Musik in deiner Nähe entdecken</h2>
+        <p class="panel__intro" data-i18n="discover_subtitle">
+          Suche nach Events, Bands, DJs und Locations in deiner Nähe.
+        </p>
+        <p id="status" class="status status--loading">Initialisiere Anwendung...</p>
+      </section>
+
+      <section id="moderationPanel" class="panel panel--moderation" hidden>
+        <div class="panel__heading">
+          <h3 data-i18n="admin_title">Moderation</h3>
+          <span id="moderationCount">0 ausstehend</span>
+        </div>
+        <p class="panel__intro" data-i18n="admin_subtitle">
+          Prüfe eingereichte Events und entscheide über Veröffentlichung.
+        </p>
+        <div id="adminAuthGate" class="admin-auth-gate">
+          <p class="panel__intro" data-i18n="admin_login_hint">
+            Admin-Login erforderlich, um pending Events zu prüfen.
+          </p>
+          <form id="adminAuthForm" class="admin-auth-form" novalidate>
+            <label class="field">
+              <span data-i18n="admin_login_email_label">Admin E-Mail</span>
+              <input
+                id="adminAuthEmail"
+                type="email"
+                data-i18n-placeholder="admin_login_email_placeholder"
+                placeholder="Admin E-Mail"
+                required
+              >
+            </label>
+            <label class="field">
+              <span data-i18n="admin_login_password_label">Passwort</span>
+              <input
+                id="adminAuthPassword"
+                type="password"
+                data-i18n-placeholder="admin_login_password_placeholder"
+                placeholder="Passwort eingeben"
+                required
+              >
+            </label>
+            <button id="adminAuthSubmit" type="submit" class="button-secondary button-secondary--primary" data-i18n="admin_login_submit">
+              Anmelden
+            </button>
+          </form>
+          <p id="adminAuthFeedback" class="add-event-message" hidden></p>
+        </div>
+        <div id="moderationWorkspace" hidden>
+          <div class="panel__heading">
+            <span id="adminSessionInfo"></span>
+            <button id="adminSignOut" type="button" class="button-secondary" data-i18n="admin_logout">Abmelden</button>
+          </div>
+          <p id="moderationFeedback" class="add-event-message" hidden></p>
+          <div id="moderationList" class="moderation-list"></div>
+        </div>
+      </section>
+
+      <section id="listSection" class="panel panel--list">
+        <form id="filtersForm" class="list-filters" autocomplete="off">
+          <div class="filter-grid">
+            <label class="field">
+              <span data-i18n="filter_city">Stadt</span>
+              <select id="cityFilter">
+                <option value="" data-i18n="filter_city_all">Alle Städte</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span data-i18n="filter_date">Datum</span>
+              <select id="dateFilter">
+                <option value="" data-i18n="filter_date_all">Alle Daten</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="genre-filter">
+            <div class="genre-filter__head">
+              <span data-i18n="filter_genre">Genres</span>
+              <button id="clearGenresButton" type="button" class="button-link" data-i18n="filter_genre_all">Alle Genres</button>
+            </div>
+            <div id="genreFilterGroup" class="genre-filter-group" aria-label="Genre Filter"></div>
+          </div>
+
+          <button id="resetFilters" type="button" class="button-secondary" data-i18n="filter_reset">Alle Filter zurücksetzen</button>
+        </form>
+
+        <div class="panel__heading">
+          <h3 data-i18n="list_title">Event-Liste</h3>
+          <span id="resultCount">0 Treffer</span>
+        </div>
+        <div id="eventList" class="event-list"></div>
+      </section>
+
+    </aside>
+
+    <section id="mapSection" class="map-column">
+      <div class="map-section">
+        <div id="map" aria-label="Karte mit Event-Markern"></div>
+        <button id="mapSearchAreaCta" type="button" class="map-search-area-cta" hidden data-i18n="map_search_area">
+          Search this area
+        </button>
+        <section id="mapBottomSheet" class="map-bottom-sheet" data-sheet-state="half" aria-label="Event sheet">
+          <div id="mapBottomSheetHandle" class="map-bottom-sheet__handle-zone" aria-hidden="true">
+            <span class="map-bottom-sheet__drag-handle"></span>
+          </div>
+          <div class="map-bottom-sheet__top">
+            <header class="map-bottom-sheet__header">
+              <h3 class="map-bottom-sheet__title" data-i18n="sheet_title">Events near you</h3>
+              <span id="mapBottomSheetCount" class="map-bottom-sheet__count">0</span>
+            </header>
+            <div class="map-bottom-sheet__search-row" hidden aria-hidden="true">
+              <label class="map-bottom-sheet__search" for="mapSheetSearchInput">
+                <span class="sr-only" data-i18n="hero_search_label">Search</span>
+                <input
+                  id="mapSheetSearchInput"
+                  type="search"
+                  data-i18n-placeholder="hero_search_placeholder"
+                  placeholder="Search events, artists, locations..."
+                >
+              </label>
+              <button id="mapSheetInlineFilter" type="button" class="map-sheet-chip map-sheet-chip--inline-filter" data-i18n="sheet_filter">
+                Filter
+              </button>
+            </div>
+            <div class="map-bottom-sheet__utility" hidden aria-hidden="true">
+              <button id="mapSheetSortNearby" type="button" class="map-sheet-chip" data-i18n="sheet_sort_nearby">Nearby</button>
+              <button id="mapSheetSortSoonest" type="button" class="map-sheet-chip is-active" data-i18n="sheet_sort_soonest">Soonest</button>
+              <button id="mapSheetFilter" type="button" class="map-sheet-chip map-sheet-chip--filter" data-i18n="sheet_filter">Filter</button>
+            </div>
+          </div>
+          <div class="map-bottom-sheet__content">
+            <section id="eventDetails" class="event-details event-details--empty">
+              Wähle ein Event aus, um Details, Bild und Route zu sehen.
+            </section>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <a id="bottomNavDiscover" class="bottom-nav__item is-active" href="#discoverSection" data-nav-mode="list">
+      <span aria-hidden="true">✨</span>
+      <span data-i18n="nav_discover">Discover</span>
+    </a>
+    <a id="bottomNavMap" class="bottom-nav__item" href="#mapSection" data-nav-mode="map">
+      <span aria-hidden="true">🗺️</span>
+      <span data-i18n="nav_map">Map</span>
+    </a>
+    <button id="bottomNavSubmit" class="bottom-nav__item" type="button">
+      <span aria-hidden="true">＋</span>
+      <span data-i18n="nav_submit">Submit</span>
+    </button>
+  </nav>
+
+  <aside id="installBanner" class="install-banner" hidden aria-live="polite" aria-atomic="true">
+    <div class="install-banner__content">
+      <h3 class="install-banner__title" data-i18n="install_banner_title">Marcha installieren</h3>
+      <p id="installBannerText" class="install-banner__text" data-i18n="install_banner_text_android_manual">
+        Füge Marcha zum Homescreen hinzu für schnelleren Zugriff.
+      </p>
+      <div class="install-banner__actions">
+        <button
+          id="installBannerPrimary"
+          type="button"
+          class="button-secondary button-secondary--primary"
+          data-i18n="install_banner_cta"
+        >
+          Install
+        </button>
+        <button id="installBannerDismiss" type="button" class="button-secondary" data-i18n="install_banner_dismiss">
+          Not now
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <div id="submitModal" class="modal" hidden aria-hidden="true">
+    <div class="modal__backdrop" data-modal-close></div>
+    <section class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="submitModalTitle">
+      <button id="closeSubmitModal" type="button" class="modal__close" data-modal-close aria-label="Close">×</button>
+      <h3 id="submitModalTitle" data-i18n="form_title">Event hinzufügen</h3>
+      <p class="panel__intro" data-i18n="form_hint">Dein Event wird eingereicht und vor Veröffentlichung geprüft.</p>
+      <form id="eventForm" class="add-event-form" novalidate>
+        <section class="add-event-form__section">
+          <h4 class="add-event-form__section-title" data-i18n="form_section_event_details">Event Details</h4>
+          <div class="add-event-form__grid">
+            <label class="field">
+              <span data-i18n="form_label_name">Event Name</span>
+              <input name="name" id="formName" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_location_name">Location</span>
+              <input name="location_name" id="formLocationName" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_address">Adresse</span>
+              <input
+                name="address"
+                id="formAddress"
+                type="text"
+                data-i18n-placeholder="form_placeholder_address"
+                placeholder="z. B. Paseo Marítimo 1"
+                required
+              >
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_postal_code">PLZ</span>
+              <input
+                name="postal_code"
+                id="formPostalCode"
+                type="text"
+                data-i18n-placeholder="form_placeholder_postal_code"
+                placeholder="z. B. 29660"
+                required
+              >
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_city">Stadt</span>
+              <input name="city" id="formCity" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_country">Land</span>
+              <input name="country" id="formCountry" type="text" required>
+            </label>
+            <label class="field" id="formEventDateField">
+              <span data-i18n="form_label_event_date">Datum</span>
+              <input name="event_date" id="formDate" type="date" required>
+            </label>
+            <label class="field" id="formEventTimeField">
+              <span data-i18n="form_label_event_time">Uhrzeit</span>
+              <input name="event_time" id="formTime" type="time">
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_recurrence_type">Event Type</span>
+              <select name="recurrence_type" id="formRecurrenceType">
+                <option value="none" data-i18n="form_recurrence_none">One-time event</option>
+                <option value="weekly" data-i18n="form_recurrence_weekly">Recurring weekly</option>
+                <option value="monthly" data-i18n="form_recurrence_monthly">Recurring monthly</option>
+              </select>
+            </label>
+            <label class="field" id="formRecurrenceStartDateField" hidden>
+              <span data-i18n="form_label_recurrence_start_date">Recurrence start date</span>
+              <input name="recurrence_start_date" id="formRecurrenceStartDate" type="date">
+            </label>
+            <label class="field" id="formRecurrenceEndDateField" hidden>
+              <span data-i18n="form_label_recurrence_end_date">Recurrence end date (optional)</span>
+              <input name="recurrence_end_date" id="formRecurrenceEndDate" type="date">
+            </label>
+            <label class="field" id="formRecurrenceWeekdayField" hidden>
+              <span data-i18n="form_label_recurrence_weekday">Weekday</span>
+              <select name="recurrence_weekday" id="formRecurrenceWeekday">
+                <option value="" data-i18n="form_recurrence_weekday_choose">Choose weekday</option>
+                <option value="1" data-i18n="weekday_monday">Monday</option>
+                <option value="2" data-i18n="weekday_tuesday">Tuesday</option>
+                <option value="3" data-i18n="weekday_wednesday">Wednesday</option>
+                <option value="4" data-i18n="weekday_thursday">Thursday</option>
+                <option value="5" data-i18n="weekday_friday">Friday</option>
+                <option value="6" data-i18n="weekday_saturday">Saturday</option>
+                <option value="0" data-i18n="weekday_sunday">Sunday</option>
+              </select>
+            </label>
+            <label class="field" id="formRecurrenceDayOfMonthField" hidden>
+              <span data-i18n="form_label_recurrence_day_of_month">Day of month</span>
+              <input
+                name="recurrence_day_of_month"
+                id="formRecurrenceDayOfMonth"
+                type="number"
+                min="1"
+                max="31"
+                step="1"
+                inputmode="numeric"
+              >
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_genre">Genre</span>
+              <input name="genre" id="formGenre" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_price_text">Preis (EUR)</span>
+              <input name="price_text" id="formPrice" type="text" data-i18n-placeholder="form_placeholder_price_text" placeholder="z. B. 25 EUR">
+              <small class="field__hint field__hint--currency" data-i18n="form_hint_price_eur">
+                Bitte Betrag in Euro angeben, z. B. 25 oder 25 EUR.
+              </small>
+            </label>
+          </div>
+          <label class="field field--full">
+            <span data-i18n="form_label_description">Beschreibung</span>
+            <textarea name="description" id="formDescription" rows="3"></textarea>
+          </label>
+          <label class="field field--full">
+            <span data-i18n="form_label_main_image">Hauptbild</span>
+            <input
+              name="main_image"
+              id="formMainImage"
+              type="file"
+              accept="image/*"
+              data-i18n-aria-label="form_label_main_image"
+            >
+            <small class="field__hint" data-i18n="form_hint_main_image">
+              1 Bild (JPG/PNG/WebP), max. 5 MB
+            </small>
+          </label>
+        </section>
+
+        <section class="add-event-form__section">
+          <h4 class="add-event-form__section-title" data-i18n="form_section_submitter_details">Deine Angaben</h4>
+          <div class="add-event-form__grid">
+            <label class="field">
+              <span data-i18n="form_label_submitted_by">Dein Name</span>
+              <input name="submitted_by" id="formSubmittedBy" type="text" required>
+            </label>
+            <label class="field">
+              <span data-i18n="form_label_contact_email">Kontakt E-Mail</span>
+              <input name="contact_email" id="formContactEmail" type="email" required>
+            </label>
+            <label class="field field--full field-checkbox">
+              <input id="formRememberContactEmail" type="checkbox">
+              <span data-i18n="form_label_contact_email_remember">E-Mail auf diesem Gerät speichern</span>
+            </label>
+          </div>
+        </section>
+
+        <p id="formFeedback" class="add-event-message" hidden></p>
+
+        <button id="formSubmitButton" type="submit" class="button-secondary button-secondary--primary" data-i18n="form_submit">
+          Event hinzufügen
+        </button>
+      </form>
+    </section>
+  </div>
+  <script>
+    window.PARTYRADAR_VERSION = "v2.2.0";
+    window.PARTYRADAR_CACHE_BUSTER = Date.now();
+    (function () {
+      var script = document.createElement("script");
+      script.src = "./app.js?v=" + encodeURIComponent(window.PARTYRADAR_CACHE_BUSTER);
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>
