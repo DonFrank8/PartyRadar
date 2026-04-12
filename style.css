@@ -338,20 +338,12 @@ body.body--modal-open {
 .hero__brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.42rem;
   min-width: 0;
-  padding: 0.04rem 0.08rem;
-  border-radius: 10px;
-  border: 1px solid rgba(163, 188, 255, 0.16);
-  background: rgba(7, 10, 18, 0.5);
-}
-
-.hero-brand__logo--full {
-  display: inline-flex;
-}
-
-.hero-brand__logo--icon {
-  display: none;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .brand-logo {
@@ -363,27 +355,20 @@ body.body--modal-open {
   image-rendering: crisp-edges;
 }
 
-.brand-logo--full {
-  width: min(144px, 32vw);
-  max-width: 144px;
-  height: auto;
-  min-width: 0;
-}
-
 .brand-logo--icon {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  min-height: 34px;
-  border-radius: 10px;
-  border: 1px solid rgba(174, 198, 255, 0.24);
-  background: rgba(10, 14, 26, 0.78);
-  box-shadow: 0 9px 16px rgba(3, 7, 16, 0.36);
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
 }
 
-.hero-brand__logo--icon.brand-logo--icon {
-  width: 34px;
-  height: 34px;
+.brand-wordmark {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
 }
 
 .hero__eyebrow {
@@ -2386,12 +2371,17 @@ body.body--modal-open {
 
   .hero__brand {
     gap: 0.32rem;
-    padding: 0.04rem 0.06rem;
   }
 
-  .brand-logo--full {
-    width: min(136px, 46vw);
-    max-width: 136px;
+  .brand-logo--icon {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+  }
+
+  .brand-wordmark {
+    font-size: 0.9rem;
   }
 
   .hero__utility-row {
@@ -2538,19 +2528,19 @@ body.body--modal-open {
 
   .hero__brand {
     justify-content: center;
-    padding: 0.02rem 0.04rem;
+    padding: 0;
+    gap: 0.3rem;
   }
 
-  .hero-brand__logo--full {
-    display: none;
+  .brand-logo--icon {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
   }
 
-  .hero-brand__logo--icon {
-    display: block;
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
+  .brand-wordmark {
+    font-size: 0.86rem;
   }
 
   .hero__top-actions {
