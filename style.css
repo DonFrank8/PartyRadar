@@ -356,7 +356,11 @@ body.body--modal-open {
 }
 
 .brand-logo--icon {
+cursor/hero-copy-language-refine-5f8a
   width: 48px;
+
+  width: auto;
+main
   height: 48px;
   min-width: 48px;
   min-height: 48px;
@@ -1146,7 +1150,7 @@ body.body--modal-open {
   position: relative;
   border-radius: 16px;
   overflow: hidden;
-  min-height: 156px;
+  min-height: 140px;
   margin-bottom: 0.35rem;
   background: linear-gradient(145deg, rgba(124, 58, 237, 0.3), rgba(236, 72, 153, 0.26), rgba(236, 72, 153, 0.24));
 }
@@ -1154,8 +1158,8 @@ body.body--modal-open {
 .event-card__image {
   width: 100%;
   height: 100%;
-  min-height: 156px;
-  max-height: 186px;
+  min-height: 140px;
+  max-height: 168px;
   object-fit: cover;
   display: block;
   transition: transform var(--motion-base);
@@ -1167,7 +1171,7 @@ body.body--modal-open {
 }
 
 .event-card__image-fallback {
-  min-height: 156px;
+  min-height: 140px;
   display: grid;
   place-items: center;
   text-align: center;
@@ -1254,6 +1258,14 @@ body.body--modal-open {
 .event-card__body {
   display: grid;
   gap: 0.52rem;
+}
+
+.event-card__artist {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: #e9f1ff;
 }
 
 .event-card__header {
@@ -2374,7 +2386,11 @@ body.body--modal-open {
   }
 
   .brand-logo--icon {
+cursor/hero-copy-language-refine-5f8a
     width: 46px;
+
+    width: auto;
+main
     height: 46px;
     min-width: 46px;
     min-height: 46px;
@@ -2533,7 +2549,11 @@ body.body--modal-open {
   }
 
   .brand-logo--icon {
+ursor/hero-copy-language-refine-5f8a
     width: 44px;
+
+    width: auto;
+main
     height: 44px;
     min-width: 44px;
     min-height: 44px;
