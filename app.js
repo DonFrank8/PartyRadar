@@ -3195,8 +3195,6 @@ function createEventCard(event, index = 0) {
   card.style.setProperty("--card-index", String(index));
   const navigationUrl = buildNavigationUrl(event);
   const primaryGenre = splitGenres(event.genre)[0] || event.genre || "-";
-  const mainArtist = String(event.main_artist || "").trim();
-  const artistLine = mainArtist ? `<p class="event-card__artist">mit ${mainArtist}</p>` : "";
   const favoriteActive = isFavoriteEvent(event.id);
   card.innerHTML = `
     <div class="event-card__media">
@@ -3219,7 +3217,7 @@ function createEventCard(event, index = 0) {
     </div>
     <div class="event-card__body">
       <h4 class="event-card__title">${event.name}</h4>
-      ${artistLine}
+      <div class="event-card_artist">${event.main_artist ? `Mit ${event.main_artist}` : ""}</div>
       <p class="event-card__location">${formatEventPlace(event)}</p>
       <p class="event-card__datetime">${formatDateTime(event)}</p>
       <div class="event-card__chips">
