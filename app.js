@@ -2260,8 +2260,23 @@ function openNavigationForEvent(event, providerName = DEFAULT_NAVIGATION_PROVIDE
   }
 }
 
+function normalizeFilterText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
 function eventSearchText(event) {
-  return [event.name, event.location_name, event.address, event.city, event.genre, event.description]
+  // Unified search: name, artist, location and city are core dimensions.
+  return [
+    event.name,
+    event.artist_name,
+    event.location_name,
+    event.city,
+    event.address,
+    event.genre,
+    event.description
+  ]
     .join(" ")
     .toLowerCase();
 }
@@ -2455,8 +2470,10 @@ function renderGenreFilter() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "genre-chip";
-    if (state.activeGenres.has(genre)) button.classList.add("is-active");
+    const isActive = state.activeGenres.has(genre);
+    if (isActive) button.classList.add("is-active");
     button.dataset.genre = genre;
+    button.setAttribute("aria-pressed", String(isActive));
     button.innerHTML = `<span class="genre-chip__icon">${iconForGenre(genre)}</span><span>${genre}</span>`;
     dom.genreFilterGroup.append(button);
   });
@@ -2519,7 +2536,7 @@ function applyFiltersFromQuery() {
 function getActiveFilters() {
   const activeQuickCategory = quickCategoryById(state.activeQuickCategoryId);
   return {
-    search: dom.searchInput.value.trim().toLowerCase(),
+    search: normalizeFilterText(dom.searchInput.value),
     city: dom.cityFilter.value,
     date: dom.dateFilter.value,
     genres: new Set([...state.activeGenres].map((genre) => genre.toLowerCase())),
@@ -2611,15 +2628,15 @@ function updateMapSheetSortControls() {
 function applyFilters() {
   const filters = getActiveFilters();
   const filtered = state.allEvents.filter((event) => {
+    const haystack = eventSearchText(event);
     if (filters.city && event.city !== filters.city) return false;
     if (filters.date && event.event_date !== filters.date) return false;
     if (!eventMatchesGenres(event, filters.genres)) return false;
     if (filters.quickKeywords.length) {
-      const haystack = eventSearchText(event);
       const hasQuickMatch = filters.quickKeywords.some((keyword) => haystack.includes(keyword));
       if (!hasQuickMatch) return false;
     }
-    if (filters.search && !eventSearchText(event).includes(filters.search)) return false;
+    if (filters.search && !haystack.includes(filters.search)) return false;
     return true;
   });
   state.filteredEvents = applyDiscoverySort(filtered);
