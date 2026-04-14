@@ -35,6 +35,7 @@
   --motion-slow: 0.36s cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --hero-drift-duration: 16s;
+  --event-media-ratio: 4 / 5;
   --glow-purple: 0 0 0 1px rgba(124, 58, 237, 0.38), 0 10px 26px rgba(124, 58, 237, 0.3);
   --glow-blue: 0 0 0 1px rgba(236, 72, 153, 0.35), 0 10px 26px rgba(236, 72, 153, 0.28);
   --shadow: 0 24px 60px rgba(2, 6, 23, 0.62);
@@ -517,16 +518,18 @@ body.body--modal-open {
 
 .featured-card__media {
   position: relative;
-  min-height: 210px;
+  aspect-ratio: var(--event-media-ratio);
+  max-height: 320px;
 }
 
 .featured-card__image,
 .featured-card__image-fallback {
   width: 100%;
   height: 100%;
-  min-height: 210px;
-  max-height: 230px;
+  min-height: 0;
+  max-height: none;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -1079,7 +1082,11 @@ body.body--modal-open {
   background:
     linear-gradient(165deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01)),
     rgba(12, 16, 31, 0.92);
-  padding: 0.66rem;
+  padding: 0.62rem;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.58rem;
   cursor: pointer;
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
   position: relative;
@@ -1146,23 +1153,26 @@ body.body--modal-open {
   position: relative;
   border-radius: 14px;
   overflow: hidden;
-  min-height: 68px;
-  max-height: 78px;
-  margin-bottom: 0.36rem;
+  width: 100%;
+  aspect-ratio: var(--event-media-ratio);
+  min-height: 0;
+  max-height: none;
+  margin: 0;
   background: linear-gradient(145deg, rgba(124, 58, 237, 0.3), rgba(236, 72, 153, 0.26), rgba(236, 72, 153, 0.24));
-  opacity: 0.9;
+  opacity: 0.88;
 }
 
 .event-card__image {
   width: 100%;
   height: 100%;
-  min-height: 68px;
-  max-height: 78px;
+  min-height: 0;
+  max-height: none;
   object-fit: cover;
+  object-position: center;
   display: block;
   transition: transform var(--motion-base);
   transform-origin: center;
-  filter: saturate(0.9) contrast(0.97);
+  filter: saturate(0.88) contrast(0.96);
 }
 
 .event-card:hover .event-card__image {
@@ -1170,7 +1180,8 @@ body.body--modal-open {
 }
 
 .event-card__image-fallback {
-  min-height: 68px;
+  min-height: 0;
+  height: 100%;
   display: grid;
   place-items: center;
   text-align: center;
@@ -1254,6 +1265,7 @@ body.body--modal-open {
 .event-card__body {
   display: grid;
   gap: 0.28rem;
+  min-width: 0;
 }
 
 .event-card__artist,
@@ -1886,25 +1898,29 @@ body.body--modal-open {
 }
 
 .event-details__media {
-  margin: -0.95rem -0.95rem 0;
+  margin: -0.95rem auto 0;
+  width: min(100%, 340px);
   position: relative;
-  border-radius: 16px 16px 0 0;
+  border-radius: 16px;
   overflow: hidden;
-  min-height: 210px;
+  aspect-ratio: var(--event-media-ratio);
+  min-height: 0;
   background: linear-gradient(150deg, rgba(124, 58, 237, 0.34), rgba(236, 72, 153, 0.28), rgba(236, 72, 153, 0.24));
 }
 
 .event-details__image {
   width: 100%;
   height: 100%;
-  min-height: 210px;
-  max-height: 280px;
+  min-height: 0;
+  max-height: none;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
 .event-details__image-fallback {
-  min-height: 210px;
+  min-height: 0;
+  height: 100%;
   display: grid;
   place-items: center;
   text-align: center;
@@ -2454,8 +2470,7 @@ body.body--modal-open {
   .featured-card__media,
   .featured-card__image,
   .featured-card__image-fallback {
-    min-height: 192px;
-    max-height: 212px;
+    max-height: 300px;
   }
 
   .hero-search__meta {
@@ -2483,6 +2498,11 @@ body.body--modal-open {
 
   .event-list {
     max-height: 42vh;
+  }
+
+  .event-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 0.52rem;
   }
 
   .map-section {
@@ -2609,8 +2629,7 @@ body.body--modal-open {
   .featured-card__media,
   .featured-card__image,
   .featured-card__image-fallback {
-    min-height: 176px;
-    max-height: 190px;
+    max-height: 270px;
   }
 
   .map-bottom-sheet {
@@ -2682,13 +2701,14 @@ body.body--modal-open {
   .panel__intro,
   .status,
   .field span,
-  .event-card__location,
-  .event-card__datetime {
+  .event-card__line {
     font-size: 0.8rem;
   }
 
   .event-card {
     border-radius: 18px;
+    grid-template-columns: 66px minmax(0, 1fr);
+    gap: 0.46rem;
   }
 
   .event-card__title {
@@ -2696,15 +2716,16 @@ body.body--modal-open {
   }
 
   .event-card__media {
-    min-height: 62px;
-    max-height: 72px;
+    aspect-ratio: var(--event-media-ratio);
+    min-height: 0;
+    max-height: none;
   }
 
   .event-card__favorite {
-    width: 32px;
-    height: 32px;
-    top: 0.56rem;
-    right: 0.56rem;
+    width: 24px;
+    height: 24px;
+    top: 0.22rem;
+    right: 0.22rem;
   }
 
   .event-card__badge {
