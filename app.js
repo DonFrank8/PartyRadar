@@ -947,7 +947,7 @@ const dom = {
   formRecurrenceDayOfMonthField: document.getElementById("formRecurrenceDayOfMonthField"),
   formRecurrenceDayOfMonth: document.getElementById("formRecurrenceDayOfMonth"),
   formGenre: document.getElementById("formGenre"),
-  formMainArtist: document.getElementById("formMainArtist"),
+  formArtistName: document.getElementById("formArtistName"),
   formAdditionalArtists: document.getElementById("formAdditionalArtists"),
   formPrice: document.getElementById("formPrice"),
   formMainImage: document.getElementById("formMainImage"),
@@ -1353,6 +1353,7 @@ function normalizeEvent(event, index) {
     price_text: event.price_text || event.price || t("details_free"),
     description: event.description || t("details_no_description"),
     image_url: event.image_url || event.image || "",
+    artist_name: event.artist_name || "",
     address,
     status: normalizeStatus(event.status),
     contact_email: event.contact_email || "",
@@ -1397,7 +1398,7 @@ function readFormPayload() {
     event_date: dom.formDate.value,
     event_time: dom.formTime.value,
     genre: dom.formGenre.value.trim(),
-    main_artist: dom.formMainArtist?.value.trim() || "",
+    artist_name: dom.formArtistName?.value.trim() || "",
     additional_artists: dom.formAdditionalArtists?.value.trim() || "",
     price_text: normalizePriceText(dom.formPrice.value),
     main_image: dom.formMainImage?.files?.[0] || null,
@@ -1422,7 +1423,7 @@ function validateFormPayload(payload) {
     payload.country &&
     (isRecurring ? payload.recurrence_start_date : payload.event_date) &&
     payload.genre &&
-    payload.main_artist &&
+    payload.artist_name &&
     payload.submitted_by &&
     payload.contact_email;
   if (!requiredFilled) {
@@ -1574,7 +1575,7 @@ function buildInsertPayload(payload) {
     recurrence_weekday: recurrenceWeekday,
     recurrence_day_of_month: recurrenceDayOfMonth,
     genre: payload.genre,
-    main_artist: payload.main_artist,
+    artist_name: payload.artist_name,
     additional_artists: payload.additional_artists || null,
     price_text: payload.price_text || null,
     description: payload.description || null,
@@ -1963,7 +1964,7 @@ async function insertEventWithSchemaFallback(client, payload) {
     "verification_notes",
     "submitted_by",
     "additional_artists",
-    "main_artist",
+    "artist_name",
     "contact_email",
     "status",
     "country",
@@ -2419,9 +2420,11 @@ function renderModerationPanel() {
       geoStatus = t("admin_geo_missing");
       geoStatusClass = "admin-geo-badge--missing";
     }
+    const artistLine = String(event.artist_name || "").trim();
     card.innerHTML = `
       <h4>${event.name}</h4>
       <div class="admin-card__meta">
+        ${artistLine ? `<span>🎤 ${artistLine}</span>` : ""}
         <span>${formatEventPlace(event)}</span>
         <span>${formatDateTime(event)}</span>
         <span>${event.genre || "-"}</span>
@@ -2813,6 +2816,8 @@ function createFeaturedCard(event) {
   card.className = "featured-card";
   const navigationUrl = buildNavigationUrl(event);
   const genre = splitGenres(event.genre)[0] || event.genre || "-";
+  const artistName = String(event.artist_name || "").trim();
+  const featuredSubline = [artistName || null, event.city || event.location_name || "-"].filter(Boolean).join(" • ");
   card.innerHTML = `
     <div class="featured-card__media">
       ${
@@ -2824,7 +2829,7 @@ function createFeaturedCard(event) {
       <div class="featured-card__content">
         <span class="featured-card__badge">${genre}</span>
         <h3>${event.name}</h3>
-        <p>${formatDateTime(event)} • ${event.city || event.location_name || "-"}</p>
+        <p>${formatDateTime(event)} • ${featuredSubline}</p>
         <div class="featured-card__actions">
           <button type="button" class="button-secondary button-secondary--primary" data-action="featured-open">${t("featured_open")}</button>
           <button type="button" class="button-secondary" data-action="featured-navigate" ${navigationUrl ? "" : "disabled"}>${t("details_navigate")}</button>
@@ -3217,7 +3222,7 @@ function createEventCard(event, index = 0) {
     <div class="event-card__body">
       <div class="event-card__header">
         <h4 class="event-card__title">${event.name}</h4>
-        <div class="event-card_artist">${event.main_artist ? `Mit ${event.main_artist}` : ""}</div>
+        <div class="event-card_artist">${event.artist_name ? `Mit ${event.artist_name}` : ""}</div>
       </div>
       <p class="event-card__line event-card__line--datetime">🗓 ${formatDateTime(event)}</p>
       <p class="event-card__line event-card__line--location">📍 ${formatEventPlace(event)}</p>
@@ -3450,7 +3455,7 @@ function renderEventDetails(event) {
     .join(", ");
   const fallbackLocationLine = [locationName, event.address, event.city].filter(Boolean).join(", ");
   const navigationUrl = buildNavigationUrl(event);
-  const mainArtist = String(event.main_artist || "").trim();
+  const mainArtist = String(event.artist_name || "").trim();
   const additionalArtists = String(event.additional_artists || "").trim();
   const artistLine = mainArtist ? `<p class="event-details__artist">Mit ${mainArtist}</p>` : "";
   const additionalArtistsLine = additionalArtists
