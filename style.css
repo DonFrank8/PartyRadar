@@ -944,6 +944,62 @@ body.body--modal-open {
   gap: 0.46rem;
 }
 
+.time-filter {
+  display: grid;
+  gap: 0.46rem;
+}
+
+.time-filter__label {
+  color: var(--text-muted);
+  font-size: 0.81rem;
+}
+
+.time-preset-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.time-chip {
+  border: 1px solid rgba(161, 186, 255, 0.36);
+  border-radius: 999px;
+  background: rgba(12, 15, 28, 0.7);
+  color: var(--text-muted);
+  font-size: 0.79rem;
+  line-height: 1;
+  min-height: 34px;
+  padding: 0.4rem 0.72rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: transform var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast), background var(--motion-fast), color var(--motion-fast);
+}
+
+.time-chip:hover {
+  border-color: var(--sunset);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(236, 72, 153, 0.2);
+}
+
+.time-chip.is-active {
+  border-color: rgba(124, 58, 237, 0.82);
+  color: #fff;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.34), rgba(236, 72, 153, 0.3));
+  box-shadow: var(--glow-purple);
+  transform: scale(1.05);
+}
+
+.time-chip:active {
+  transform: scale(0.98);
+}
+
+.custom-date-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
 .genre-filter__head {
   display: flex;
   justify-content: space-between;
@@ -2509,6 +2565,7 @@ body.body--modal-open {
   }
 
   .filter-grid,
+  .custom-date-range,
   .add-event-form__grid {
     grid-template-columns: 1fr;
   }
