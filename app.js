@@ -182,6 +182,13 @@ const PRESS_FEEDBACK_SELECTOR = [
 ].join(", ");
 const TAP_FEEDBACK_SELECTOR = `${PRESS_FEEDBACK_SELECTOR}, .event-card__favorite, .marker-pin`;
 const TRANSITION_STATE_CLASSES = ["is-transitioning", "is-transitioning-to-map", "is-transitioning-to-list"];
+const DATE_PRESET_IDS = Object.freeze({
+  TODAY: "today",
+  TOMORROW: "tomorrow",
+  THIS_WEEKEND: "this-weekend",
+  NEXT_WEEKEND: "next-weekend",
+  CUSTOM: "custom"
+});
 
 const NAVIGATION_URL_BUILDERS = {
   google: {
@@ -238,6 +245,14 @@ const I18N = {
     filter_city_all: "Alle Städte",
     filter_date: "Datum",
     filter_date_all: "Alle Daten",
+    filter_time: "Zeitraum",
+    filter_time_today: "Heute",
+    filter_time_tomorrow: "Morgen",
+    filter_time_this_weekend: "Dieses Wochenende",
+    filter_time_next_weekend: "Nächstes Wochenende",
+    filter_time_custom: "Datum wählen",
+    filter_time_custom_start: "Von",
+    filter_time_custom_end: "Bis",
     filter_genre: "Genres",
     filter_genre_all: "Alle Genres",
     filter_reset: "Alle Filter zurücksetzen",
@@ -439,6 +454,14 @@ const I18N = {
     filter_city_all: "All cities",
     filter_date: "Date",
     filter_date_all: "All dates",
+    filter_time: "Time",
+    filter_time_today: "Today",
+    filter_time_tomorrow: "Tomorrow",
+    filter_time_this_weekend: "This weekend",
+    filter_time_next_weekend: "Next weekend",
+    filter_time_custom: "Pick date",
+    filter_time_custom_start: "Start",
+    filter_time_custom_end: "End",
     filter_genre: "Genres",
     filter_genre_all: "All genres",
     filter_reset: "Reset all filters",
@@ -640,6 +663,14 @@ const I18N = {
     filter_city_all: "Todas las ciudades",
     filter_date: "Fecha",
     filter_date_all: "Todas las fechas",
+    filter_time: "Periodo",
+    filter_time_today: "Hoy",
+    filter_time_tomorrow: "Mañana",
+    filter_time_this_weekend: "Este fin de semana",
+    filter_time_next_weekend: "Próximo fin de semana",
+    filter_time_custom: "Elegir fecha",
+    filter_time_custom_start: "Desde",
+    filter_time_custom_end: "Hasta",
     filter_genre: "Géneros",
     filter_genre_all: "Todos los géneros",
     filter_reset: "Restablecer filtros",
@@ -832,6 +863,11 @@ const state = {
   availableGenres: [],
   availableDates: [],
   activeGenres: new Set(),
+  dateRange: {
+    start: null,
+    end: null
+  },
+  activeDatePreset: "",
   discoverySort: "soonest",
   activeQuickCategoryId: "all",
   viewMode: "list",
@@ -921,6 +957,10 @@ const dom = {
   searchInput: document.getElementById("searchInput"),
   cityFilter: document.getElementById("cityFilter"),
   dateFilter: document.getElementById("dateFilter"),
+  timePresetGroup: document.getElementById("timePresetGroup"),
+  customDateRange: document.getElementById("customDateRange"),
+  dateRangeStart: document.getElementById("dateRangeStart"),
+  dateRangeEnd: document.getElementById("dateRangeEnd"),
   genreFilterGroup: document.getElementById("genreFilterGroup"),
   clearGenresButton: document.getElementById("clearGenresButton"),
   resetFilters: document.getElementById("resetFilters"),
@@ -2306,6 +2346,214 @@ function normalizeRequestedGenres(rawGenres) {
   return [...new Set(selected)];
 }
 
+function normalizeDatePresetId(value) {
+  const preset = String(value || "").trim().toLowerCase();
+  const knownPresets = new Set(Object.values(DATE_PRESET_IDS));
+  return knownPresets.has(preset) ? preset : "";
+}
+
+function cloneDateAtStartOfDay(dateValue) {
+  const cloned = new Date(dateValue);
+  cloned.setHours(0, 0, 0, 0);
+  return cloned;
+}
+
+function cloneDateAtEndOfDay(dateValue) {
+  const cloned = new Date(dateValue);
+  cloned.setHours(23, 59, 59, 999);
+  return cloned;
+}
+
+function normalizeDateRange(range) {
+  if (!range?.start || !range?.end) {
+    return { start: null, end: null };
+  }
+  const parsedStart = cloneDateAtStartOfDay(range.start);
+  const parsedEnd = cloneDateAtEndOfDay(range.end);
+  if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
+    return { start: null, end: null };
+  }
+  if (parsedStart <= parsedEnd) {
+    return { start: parsedStart, end: parsedEnd };
+  }
+  return {
+    start: cloneDateAtStartOfDay(parsedEnd),
+    end: cloneDateAtEndOfDay(parsedStart)
+  };
+}
+
+function cloneDateRange(range) {
+  return normalizeDateRange(range);
+}
+
+function getTodayRange(referenceDate = new Date()) {
+  const today = cloneDateAtStartOfDay(referenceDate);
+  return {
+    start: cloneDateAtStartOfDay(today),
+    end: cloneDateAtEndOfDay(today)
+  };
+}
+
+function getTomorrowRange(referenceDate = new Date()) {
+  const tomorrow = cloneDateAtStartOfDay(referenceDate);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return {
+    start: cloneDateAtStartOfDay(tomorrow),
+    end: cloneDateAtEndOfDay(tomorrow)
+  };
+}
+
+function getWeekendRange(referenceDate = new Date()) {
+  const date = cloneDateAtStartOfDay(referenceDate);
+  const day = date.getDay();
+  let fridayOffset = 5 - day;
+  if (day === 6) fridayOffset = -1;
+  if (day === 0) fridayOffset = -2;
+
+  const friday = cloneDateAtStartOfDay(date);
+  friday.setDate(friday.getDate() + fridayOffset);
+  const sunday = cloneDateAtStartOfDay(friday);
+  sunday.setDate(friday.getDate() + 2);
+
+  return {
+    start: cloneDateAtStartOfDay(friday),
+    end: cloneDateAtEndOfDay(sunday)
+  };
+}
+
+function getNextWeekendRange(referenceDate = new Date()) {
+  const thisWeekend = getWeekendRange(referenceDate);
+  const nextFriday = cloneDateAtStartOfDay(thisWeekend.start);
+  nextFriday.setDate(nextFriday.getDate() + 7);
+
+  const nextSunday = cloneDateAtStartOfDay(nextFriday);
+  nextSunday.setDate(nextFriday.getDate() + 2);
+
+  return {
+    start: cloneDateAtStartOfDay(nextFriday),
+    end: cloneDateAtEndOfDay(nextSunday)
+  };
+}
+
+function resolveDateRangeForPreset(presetId) {
+  if (presetId === DATE_PRESET_IDS.TODAY) return getTodayRange();
+  if (presetId === DATE_PRESET_IDS.TOMORROW) return getTomorrowRange();
+  if (presetId === DATE_PRESET_IDS.THIS_WEEKEND) return getWeekendRange();
+  if (presetId === DATE_PRESET_IDS.NEXT_WEEKEND) return getNextWeekendRange();
+  return { start: null, end: null };
+}
+
+function sameDayRange(range) {
+  if (!range?.start || !range?.end) return false;
+  return formatIsoDate(range.start) === formatIsoDate(range.end);
+}
+
+function rangesAreEqual(rangeA, rangeB) {
+  if (!rangeA?.start || !rangeA?.end || !rangeB?.start || !rangeB?.end) return false;
+  return (
+    formatIsoDate(rangeA.start) === formatIsoDate(rangeB.start) &&
+    formatIsoDate(rangeA.end) === formatIsoDate(rangeB.end)
+  );
+}
+
+function inferPresetFromDateRange(range, referenceDate = new Date()) {
+  const normalizedRange = normalizeDateRange(range);
+  if (!normalizedRange.start || !normalizedRange.end) return "";
+
+  if (rangesAreEqual(normalizedRange, getTodayRange(referenceDate))) return DATE_PRESET_IDS.TODAY;
+  if (rangesAreEqual(normalizedRange, getTomorrowRange(referenceDate))) return DATE_PRESET_IDS.TOMORROW;
+  if (rangesAreEqual(normalizedRange, getWeekendRange(referenceDate))) return DATE_PRESET_IDS.THIS_WEEKEND;
+  if (rangesAreEqual(normalizedRange, getNextWeekendRange(referenceDate))) return DATE_PRESET_IDS.NEXT_WEEKEND;
+  return "";
+}
+
+function syncLegacyDateFilterValue() {
+  if (!dom.dateFilter) return;
+  const currentRange = state.dateRange;
+  if (sameDayRange(currentRange)) {
+    dom.dateFilter.value = formatIsoDate(currentRange.start);
+    return;
+  }
+  dom.dateFilter.value = "";
+}
+
+function renderTimePresetButtons() {
+  if (!dom.timePresetGroup) return;
+  const activePreset = normalizeDatePresetId(state.activeDatePreset);
+  dom.timePresetGroup.querySelectorAll("button[data-date-preset]").forEach((button) => {
+    const preset = normalizeDatePresetId(button.dataset.datePreset);
+    const isActive = Boolean(activePreset && preset === activePreset);
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function updateCustomDateRangeVisibility() {
+  if (!dom.customDateRange) return;
+  const isCustom = state.activeDatePreset === DATE_PRESET_IDS.CUSTOM;
+  dom.customDateRange.hidden = !isCustom;
+  dom.customDateRange.setAttribute("aria-hidden", String(!isCustom));
+}
+
+function setDateRangeState(range, presetId = "", options = { syncInputs: true }) {
+  const normalizedRange = normalizeDateRange(range);
+  const normalizedPreset = normalizeDatePresetId(presetId);
+  state.dateRange = normalizedRange;
+  state.activeDatePreset = normalizedPreset || inferPresetFromDateRange(normalizedRange);
+  renderTimePresetButtons();
+  updateCustomDateRangeVisibility();
+  syncLegacyDateFilterValue();
+
+  if (options.syncInputs) {
+    if (state.activeDatePreset === DATE_PRESET_IDS.CUSTOM) {
+      if (dom.dateRangeStart) dom.dateRangeStart.value = normalizedRange.start ? formatIsoDate(normalizedRange.start) : "";
+      if (dom.dateRangeEnd) dom.dateRangeEnd.value = normalizedRange.end ? formatIsoDate(normalizedRange.end) : "";
+    } else {
+      if (dom.dateRangeStart) dom.dateRangeStart.value = "";
+      if (dom.dateRangeEnd) dom.dateRangeEnd.value = "";
+    }
+  }
+}
+
+function applyDatePreset(presetId) {
+  const normalizedPreset = normalizeDatePresetId(presetId);
+  if (!normalizedPreset) return;
+
+  if (normalizedPreset === DATE_PRESET_IDS.CUSTOM) {
+    setDateRangeState({ start: null, end: null }, DATE_PRESET_IDS.CUSTOM);
+    applyFilters();
+    return;
+  }
+
+  setDateRangeState(resolveDateRangeForPreset(normalizedPreset), normalizedPreset);
+  applyFilters();
+}
+
+function parseCustomDateRangeInputs() {
+  const start = parseIsoDate(dom.dateRangeStart?.value || "");
+  const end = parseIsoDate(dom.dateRangeEnd?.value || "");
+  if (!start || !end) return { start: null, end: null };
+  return { start, end };
+}
+
+function handleCustomDateRangeInputChange() {
+  const parsedRange = parseCustomDateRangeInputs();
+  setDateRangeState(parsedRange, DATE_PRESET_IDS.CUSTOM, { syncInputs: false });
+  applyFilters();
+}
+
+function handleLegacyDateFilterChange() {
+  const selectedDate = parseIsoDate(dom.dateFilter?.value || "");
+  if (selectedDate) {
+    setDateRangeState({ start: selectedDate, end: selectedDate }, "");
+  } else {
+    setDateRangeState({ start: null, end: null }, "");
+  }
+  syncHeroControlsFromSidebar();
+  syncMapSheetControlsFromSidebar();
+  debouncedApplyFilters();
+}
+
 function readQueryParams() {
   const params = new URLSearchParams(window.location.search);
   return {
@@ -2313,6 +2561,9 @@ function readQueryParams() {
     q: params.get("q") || "",
     city: params.get("city") || "",
     date: params.get("date") || "",
+    dateStart: params.get("date_start") || "",
+    dateEnd: params.get("date_end") || "",
+    datePreset: params.get("date_preset") || "",
     admin: params.get("admin") || "",
     genres: (params.get("genres") || "")
       .split(",")
@@ -2329,13 +2580,19 @@ function updateUrlFromFilters() {
   const params = new URLSearchParams();
   const search = dom.searchInput.value.trim();
   const city = dom.cityFilter.value;
-  const date = dom.dateFilter.value;
+  const dateRange = cloneDateRange(state.dateRange);
+  const activeDatePreset = normalizeDatePresetId(state.activeDatePreset);
 
   if (state.lang !== "de") params.set("lang", state.lang);
   if (state.isAdminMode) params.set("admin", "1");
   if (search) params.set("q", search);
   if (city) params.set("city", city);
-  if (date) params.set("date", date);
+  if (activeDatePreset) params.set("date_preset", activeDatePreset);
+  if (dateRange.start && dateRange.end) {
+    params.set("date_start", formatIsoDate(dateRange.start));
+    params.set("date_end", formatIsoDate(dateRange.end));
+    if (sameDayRange(dateRange)) params.set("date", formatIsoDate(dateRange.start));
+  }
   if (state.activeGenres.size) params.set("genres", [...state.activeGenres].join(","));
 
   const queryString = params.toString();
@@ -2524,8 +2781,23 @@ function applyFiltersFromQuery() {
   if (query.city && [...dom.cityFilter.options].some((option) => option.value === query.city)) {
     dom.cityFilter.value = query.city;
   }
-  if (query.date && [...dom.dateFilter.options].some((option) => option.value === query.date)) {
-    dom.dateFilter.value = query.date;
+  const presetFromQuery = normalizeDatePresetId(query.datePreset);
+  const rangeStart = parseIsoDate(query.dateStart || "");
+  const rangeEnd = parseIsoDate(query.dateEnd || "");
+  const singleDay = parseIsoDate(query.date || "");
+  if (rangeStart && rangeEnd) {
+    setDateRangeState(
+      { start: rangeStart, end: rangeEnd },
+      presetFromQuery
+    );
+  } else if (presetFromQuery && presetFromQuery !== DATE_PRESET_IDS.CUSTOM) {
+    setDateRangeState(resolveDateRangeForPreset(presetFromQuery), presetFromQuery);
+  } else if (singleDay) {
+    setDateRangeState({ start: singleDay, end: singleDay }, "");
+  } else if (presetFromQuery === DATE_PRESET_IDS.CUSTOM) {
+    setDateRangeState({ start: null, end: null }, DATE_PRESET_IDS.CUSTOM, { syncInputs: false });
+  } else {
+    setDateRangeState({ start: null, end: null }, "");
   }
   state.activeGenres = new Set(normalizeRequestedGenres(query.genres));
   renderGenreFilter();
@@ -2538,7 +2810,7 @@ function getActiveFilters() {
   return {
     search: normalizeFilterText(dom.searchInput.value),
     city: dom.cityFilter.value,
-    date: dom.dateFilter.value,
+    dateRange: cloneDateRange(state.dateRange),
     genres: new Set([...state.activeGenres].map((genre) => genre.toLowerCase())),
     quickKeywords: activeQuickCategory.keywords.map((keyword) => keyword.toLowerCase())
   };
@@ -2629,8 +2901,13 @@ function applyFilters() {
   const filters = getActiveFilters();
   const filtered = state.allEvents.filter((event) => {
     const haystack = eventSearchText(event);
+    const eventDate = parseIsoDate(event.event_date || "");
     if (filters.city && event.city !== filters.city) return false;
-    if (filters.date && event.event_date !== filters.date) return false;
+    if (filters.dateRange.start && filters.dateRange.end) {
+      if (!eventDate || eventDate < filters.dateRange.start || eventDate > filters.dateRange.end) {
+        return false;
+      }
+    }
     if (!eventMatchesGenres(event, filters.genres)) return false;
     if (filters.quickKeywords.length) {
       const hasQuickMatch = filters.quickKeywords.some((keyword) => haystack.includes(keyword));
@@ -3658,7 +3935,7 @@ function clearGenreSelection() {
 function resetFilters() {
   dom.searchInput.value = "";
   dom.cityFilter.value = "";
-  dom.dateFilter.value = "";
+  setDateRangeState({ start: null, end: null }, "");
   syncHeroControlsFromSidebar();
   state.activeGenres.clear();
   renderGenreFilter();
@@ -3840,11 +4117,21 @@ function bindEvents() {
     syncMapSheetControlsFromSidebar();
     debouncedApplyFilters();
   });
-  dom.dateFilter.addEventListener("change", () => {
-    syncHeroControlsFromSidebar();
-    syncMapSheetControlsFromSidebar();
-    debouncedApplyFilters();
-  });
+  dom.dateFilter.addEventListener("change", handleLegacyDateFilterChange);
+  if (dom.timePresetGroup) {
+    dom.timePresetGroup.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const button = target?.closest("button[data-date-preset]");
+      if (!button) return;
+      applyDatePreset(button.dataset.datePreset || "");
+    });
+  }
+  if (dom.dateRangeStart) {
+    dom.dateRangeStart.addEventListener("change", handleCustomDateRangeInputChange);
+  }
+  if (dom.dateRangeEnd) {
+    dom.dateRangeEnd.addEventListener("change", handleCustomDateRangeInputChange);
+  }
   if (dom.heroSearchInput) {
     dom.heroSearchInput.addEventListener("input", () => {
       syncSidebarFromHeroControls();
@@ -3863,7 +4150,7 @@ function bindEvents() {
     dom.heroDateFilter.addEventListener("change", () => {
       syncSidebarFromHeroControls();
       syncMapSheetControlsFromSidebar();
-      debouncedApplyFilters();
+      handleLegacyDateFilterChange();
     });
   }
   if (dom.mapSheetSearchInput) {
@@ -3884,7 +4171,7 @@ function bindEvents() {
     dom.mapSheetDateFilter.addEventListener("change", () => {
       syncSidebarFromMapSheetControls();
       syncHeroControlsFromSidebar();
-      debouncedApplyFilters();
+      handleLegacyDateFilterChange();
     });
   }
   if (dom.languageSwitch) {
