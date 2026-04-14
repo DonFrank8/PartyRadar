@@ -2448,6 +2448,25 @@ function sameDayRange(range) {
   return formatIsoDate(range.start) === formatIsoDate(range.end);
 }
 
+function rangesAreEqual(rangeA, rangeB) {
+  if (!rangeA?.start || !rangeA?.end || !rangeB?.start || !rangeB?.end) return false;
+  return (
+    formatIsoDate(rangeA.start) === formatIsoDate(rangeB.start) &&
+    formatIsoDate(rangeA.end) === formatIsoDate(rangeB.end)
+  );
+}
+
+function inferPresetFromDateRange(range, referenceDate = new Date()) {
+  const normalizedRange = normalizeDateRange(range);
+  if (!normalizedRange.start || !normalizedRange.end) return "";
+
+  if (rangesAreEqual(normalizedRange, getTodayRange(referenceDate))) return DATE_PRESET_IDS.TODAY;
+  if (rangesAreEqual(normalizedRange, getTomorrowRange(referenceDate))) return DATE_PRESET_IDS.TOMORROW;
+  if (rangesAreEqual(normalizedRange, getWeekendRange(referenceDate))) return DATE_PRESET_IDS.THIS_WEEKEND;
+  if (rangesAreEqual(normalizedRange, getNextWeekendRange(referenceDate))) return DATE_PRESET_IDS.NEXT_WEEKEND;
+  return "";
+}
+
 function syncLegacyDateFilterValue() {
   if (!dom.dateFilter) return;
   const currentRange = state.dateRange;
@@ -2478,8 +2497,9 @@ function updateCustomDateRangeVisibility() {
 
 function setDateRangeState(range, presetId = "", options = { syncInputs: true }) {
   const normalizedRange = normalizeDateRange(range);
+  const normalizedPreset = normalizeDatePresetId(presetId);
   state.dateRange = normalizedRange;
-  state.activeDatePreset = normalizeDatePresetId(presetId);
+  state.activeDatePreset = normalizedPreset || inferPresetFromDateRange(normalizedRange);
   renderTimePresetButtons();
   updateCustomDateRangeVisibility();
   syncLegacyDateFilterValue();
@@ -2518,11 +2538,7 @@ function parseCustomDateRangeInputs() {
 
 function handleCustomDateRangeInputChange() {
   const parsedRange = parseCustomDateRangeInputs();
-  state.activeDatePreset = DATE_PRESET_IDS.CUSTOM;
-  state.dateRange = normalizeDateRange(parsedRange);
-  renderTimePresetButtons();
-  updateCustomDateRangeVisibility();
-  syncLegacyDateFilterValue();
+  setDateRangeState(parsedRange, DATE_PRESET_IDS.CUSTOM, { syncInputs: false });
   applyFilters();
 }
 
@@ -2772,7 +2788,7 @@ function applyFiltersFromQuery() {
   if (rangeStart && rangeEnd) {
     setDateRangeState(
       { start: rangeStart, end: rangeEnd },
-      presetFromQuery || DATE_PRESET_IDS.CUSTOM
+      presetFromQuery
     );
   } else if (presetFromQuery && presetFromQuery !== DATE_PRESET_IDS.CUSTOM) {
     setDateRangeState(resolveDateRangeForPreset(presetFromQuery), presetFromQuery);
