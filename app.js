@@ -824,6 +824,8 @@ const state = {
   moderationEvents: [],
   filteredEvents: [],
   selectedEventId: null,
+  activeEventId: null,
+  activeEvent: null,
   adminSession: null,
   sourceType: "unknown",
   isAdminMode: false,
@@ -3464,22 +3466,24 @@ function renderEventDetails(event) {
   const priceText = formatPrice(event.price_text);
   const navigationCta = navigationUrl
     ? `
-      <a
+      <button
+        type="button"
         class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta"
-        href="${navigationUrl}"
-        target="_blank"
-        rel="noopener noreferrer"
+        data-action="details-navigate"
+        data-event-id="${event.id}"
       >
-        ${t("details_navigate")}
-      </a>
+        Navigate
+      </button>
       `
     : `
       <button
         type="button"
         class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta"
+        data-action="details-navigate"
+        data-event-id="${event.id}"
         disabled
       >
-        ${t("details_navigate")}
+        Navigate
       </button>
       `;
   dom.eventDetails.innerHTML = `
@@ -3601,6 +3605,7 @@ function selectEvent(eventData, source = "list") {
   const resolvedEvent = resolveSelectEventData(eventData);
   if (!resolvedEvent) return;
 
+  // Keep every click-entry path (list/featured/marker/auto) in one state flow.
   const options = resolveSelectEventOptions(source);
   if (options.preferMapOnMobile && mapSheetIsMobileViewport() && state.viewMode !== "map") {
     setViewMode("map", { scroll: true });
@@ -3994,6 +3999,15 @@ function bindEvents() {
     dom.eventDetails.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
+      const navigateButton = target.closest("button[data-action='details-navigate']");
+      if (navigateButton) {
+        const eventId = navigateButton.dataset.eventId || state.selectedEventId;
+        const selectedEvent = findEventById(eventId) || state.activeEvent;
+        if (selectedEvent) {
+          openNavigationForEvent(selectedEvent);
+        }
+        return;
+      }
       const listButton = target.closest("button[data-action='empty-switch-list']");
       if (listButton) {
         setViewMode("list", { scroll: true });
