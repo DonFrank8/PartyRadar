@@ -3809,6 +3809,10 @@ function renderEventDetails(event) {
   const locationExtraMarkup = venueCategory
     ? `<p class="event-details__venue-detail event-details__location-extra">${venueCategory}</p>`
     : "";
+  const hasCoordinates = Number.isFinite(event.lat) && Number.isFinite(event.lng);
+  const distancePlaceholder = hasCoordinates
+    ? `<p class="event-details__distance-slot" data-distance-slot data-lat="${event.lat}" data-lng="${event.lng}"></p>`
+    : "";
   const descriptionText = String(event.description || t("details_no_description")).trim();
   const descriptionMarkup = descriptionText
     ? `<article class="event-details__section event-details__section--description">
@@ -3859,6 +3863,7 @@ function renderEventDetails(event) {
           <p class="event-details__venue-detail">${addressDetail}</p>
           ${cityCountryMarkup}
           ${locationExtraMarkup}
+          ${distancePlaceholder}
           ${recurringLine}
         </div>
         <div class="event-details__flow">

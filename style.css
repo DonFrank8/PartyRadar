@@ -2144,6 +2144,14 @@ body.body--modal-open {
   white-space: pre-wrap;
 }
 
+.event-details__distance-slot {
+  margin: 0.08rem 0 0;
+  color: #9fb2d8;
+  font-size: 0.78rem;
+  line-height: 1.28;
+  min-height: 1.18em;
+}
+
 .event-details__muted {
   margin-top: 0.34rem !important;
   color: #a9bcdf !important;
@@ -2156,11 +2164,6 @@ body.body--modal-open {
 
 .event-details__actions--bottom {
   margin-top: 0.44rem;
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  padding-top: 0.42rem;
-  background: linear-gradient(180deg, rgba(10, 13, 25, 0), rgba(10, 13, 25, 0.92) 42%);
 }
 
 .event-details__navigate-cta {
