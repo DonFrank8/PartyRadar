@@ -2278,17 +2278,31 @@ function resolveNavigationDestination(event) {
   };
 }
 
-function buildNavigationUrl(event, providerName = DEFAULT_NAVIGATION_PROVIDER) {
-  const destination = resolveNavigationDestination(event);
-  if (!destination) return "";
+function buildNavigationUrl(event) {
+  if (Number.isFinite(event?.lat) && Number.isFinite(event?.lng)) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${event.lat},${event.lng}`)}`;
+  }
 
-  const provider = NAVIGATION_URL_BUILDERS[providerName] || NAVIGATION_URL_BUILDERS.google;
-  if (destination.type === "coordinates") return provider.byCoordinates(destination);
-  return provider.byAddress(destination.query);
+  const addressQuery = [event?.address, event?.city]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+  if (addressQuery) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`;
+  }
+
+  const fallbackQuery = [event?.location_name, event?.city, event?.country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+  if (!fallbackQuery) return "";
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackQuery)}`;
 }
 
-function openNavigationForEvent(event, providerName = DEFAULT_NAVIGATION_PROVIDER) {
-  const url = buildNavigationUrl(event, providerName);
+function openRoute(event) {
+  const url = buildNavigationUrl(event);
   if (!url) {
     setStatus(t("navigation_unavailable"), "warning");
     return;
@@ -2298,6 +2312,10 @@ function openNavigationForEvent(event, providerName = DEFAULT_NAVIGATION_PROVIDE
   if (!openedWindow) {
     window.location.href = url;
   }
+}
+
+function openNavigationForEvent(event) {
+  openRoute(event);
 }
 
 function normalizeFilterText(value) {
@@ -3776,14 +3794,20 @@ function renderEventDetails(event) {
   const genreText = event.genre || "-";
   const priceText = formatPrice(event.price_text);
   const locationLead = locationName || event.city || fallbackLocationLine || "-";
-  const addressDetail = addressLine || [event.city, event.country].filter(Boolean).join(", ") || "-";
+  const addressOnlyLine = [event.address, event.postal_code]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
   const cityCountryLine = [event.city, event.country]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(", ");
-  const locationExtraLine = venueCategory || cityCountryLine || "";
-  const locationExtraMarkup = locationExtraLine
-    ? `<p class="event-details__venue-detail">${locationExtraLine}</p>`
+  const addressDetail = addressOnlyLine || cityCountryLine || "-";
+  const cityCountryMarkup = addressOnlyLine && cityCountryLine
+    ? `<p class="event-details__venue-detail">${cityCountryLine}</p>`
+    : "";
+  const locationExtraMarkup = venueCategory
+    ? `<p class="event-details__venue-detail event-details__location-extra">${venueCategory}</p>`
     : "";
   const descriptionText = String(event.description || t("details_no_description")).trim();
   const descriptionMarkup = descriptionText
@@ -3792,11 +3816,11 @@ function renderEventDetails(event) {
           <p>${descriptionText}</p>
        </article>`
     : "";
-  const navigationCta = navigationUrl
+  const navigationCtaInline = navigationUrl
     ? `
       <button
         type="button"
-        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta"
+        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta event-details__navigate-inline"
         data-action="details-navigate"
         data-event-id="${event.id}"
       >
@@ -3806,7 +3830,7 @@ function renderEventDetails(event) {
     : `
       <button
         type="button"
-        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta"
+        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta event-details__navigate-inline"
         data-action="details-navigate"
         data-event-id="${event.id}"
         disabled
@@ -3825,11 +3849,15 @@ function renderEventDetails(event) {
       </div>
       <div class="event-details__content">
         <div class="event-details__header">
-          <h4>${event.name}</h4>
+          <div class="event-details__header-top">
+            <h4>${event.name}</h4>
+            ${navigationCtaInline}
+          </div>
           ${artistLine}
           ${additionalArtistsLine}
           <p class="event-details__location-lead">📍 ${locationLead}</p>
           <p class="event-details__venue-detail">${addressDetail}</p>
+          ${cityCountryMarkup}
           ${locationExtraMarkup}
           ${recurringLine}
         </div>
@@ -3848,9 +3876,6 @@ function renderEventDetails(event) {
           </article>
         </div>
         ${descriptionMarkup}
-        <div class="event-details__actions event-details__actions--bottom">
-          ${navigationCta}
-        </div>
       </div>
     </div>
   `;
