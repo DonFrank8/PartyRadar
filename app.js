@@ -3111,7 +3111,11 @@ function createFeaturedCard(event) {
   const navigationUrl = buildNavigationUrl(event);
   const genre = splitGenres(event.genre)[0] || event.genre || "-";
   const artistName = String(event.artist_name || "").trim();
-  const locationMeta = [formatDateTime(event), event.city || event.location_name || "-"]
+  const locationLine = [event.location_name, event.city]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" · ");
+  const dateTimeLine = [formatDate(event.event_date, true), event.event_time || t("details_time_fallback")]
     .filter(Boolean)
     .join(" • ");
   const featuredArtistLine = artistName
@@ -3129,7 +3133,8 @@ function createFeaturedCard(event) {
         <span class="featured-card__badge">${genre}</span>
         <h3>${event.name}</h3>
         ${featuredArtistLine}
-        <p class="featured-card__meta">${locationMeta}</p>
+        <p class="featured-card__meta">📍 ${locationLine || "-"}</p>
+        <p class="featured-card__meta">${dateTimeLine}</p>
         <div class="featured-card__actions">
           <button type="button" class="button-secondary button-secondary--primary" data-action="featured-open">${t("featured_open")}</button>
           <button type="button" class="button-secondary" data-action="featured-navigate" ${navigationUrl ? "" : "disabled"}>${t("details_navigate")}</button>
@@ -3778,7 +3783,14 @@ function renderEventDetails(event) {
     .join(", ");
   const locationExtraLine = venueCategory || cityCountryLine || "";
   const locationExtraMarkup = locationExtraLine
-    ? `<p class="event-details__muted event-details__location-extra">${locationExtraLine}</p>`
+    ? `<p class="event-details__venue-detail">${locationExtraLine}</p>`
+    : "";
+  const descriptionText = String(event.description || t("details_no_description")).trim();
+  const descriptionMarkup = descriptionText
+    ? `<article class="event-details__section event-details__section--description">
+          <h5>${t("form_label_description")}</h5>
+          <p>${descriptionText}</p>
+       </article>`
     : "";
   const navigationCta = navigationUrl
     ? `
@@ -3817,33 +3829,25 @@ function renderEventDetails(event) {
           ${artistLine}
           ${additionalArtistsLine}
           <p class="event-details__location-lead">📍 ${locationLead}</p>
+          <p class="event-details__venue-detail">${addressDetail}</p>
+          ${locationExtraMarkup}
           ${recurringLine}
         </div>
-        <div class="event-details__grid event-details__meta-grid">
-          <article class="event-details__card">
+        <div class="event-details__flow">
+          <article class="event-details__section">
             <h5>${t("details_date")}</h5>
-            <p>${dateText}</p>
-            <p class="event-details__muted">${timeText}</p>
+            <p>${dateText} • ${timeText}</p>
           </article>
-          <article class="event-details__card">
-            <h5>${t("details_location")}</h5>
-            <p>${locationLead}</p>
-            <p class="event-details__muted">${addressDetail}</p>
-            ${locationExtraMarkup}
-          </article>
-          <article class="event-details__card">
+          <article class="event-details__section">
             <h5>${t("details_genre")}</h5>
             <p>${genreText}</p>
           </article>
-          <article class="event-details__card">
+          <article class="event-details__section">
             <h5>${t("details_price")}</h5>
             <p>${priceText}</p>
           </article>
         </div>
-        <article class="event-details__card event-details__card--description">
-          <h5>${t("form_label_description")}</h5>
-          <p>${event.description || t("details_no_description")}</p>
-        </article>
+        ${descriptionMarkup}
         <div class="event-details__actions event-details__actions--bottom">
           ${navigationCta}
         </div>
