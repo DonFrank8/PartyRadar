@@ -3824,7 +3824,7 @@ function renderEventDetails(event) {
     ? `
       <button
         type="button"
-        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta event-details__navigate-inline"
+        class="button-secondary event-details__route-inline"
         data-action="details-navigate"
         data-event-id="${event.id}"
       >
@@ -3834,7 +3834,7 @@ function renderEventDetails(event) {
     : `
       <button
         type="button"
-        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta event-details__navigate-inline"
+        class="button-secondary event-details__route-inline"
         data-action="details-navigate"
         data-event-id="${event.id}"
         disabled
@@ -3853,13 +3853,13 @@ function renderEventDetails(event) {
       </div>
       <div class="event-details__content">
         <div class="event-details__header">
-          <div class="event-details__header-top">
-            <h4>${event.name}</h4>
-            ${navigationCtaInline}
-          </div>
+          <h4>${event.name}</h4>
           ${artistLine}
           ${additionalArtistsLine}
-          <p class="event-details__location-lead">📍 ${locationLead}</p>
+          <div class="event-details__location-row">
+            <p class="event-details__location-lead">📍 ${locationLead}</p>
+            ${navigationCtaInline}
+          </div>
           <p class="event-details__venue-detail">${addressDetail}</p>
           ${cityCountryMarkup}
           ${locationExtraMarkup}
