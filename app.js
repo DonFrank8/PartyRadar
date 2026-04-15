@@ -2278,17 +2278,31 @@ function resolveNavigationDestination(event) {
   };
 }
 
-function buildNavigationUrl(event, providerName = DEFAULT_NAVIGATION_PROVIDER) {
-  const destination = resolveNavigationDestination(event);
-  if (!destination) return "";
+function buildNavigationUrl(event) {
+  if (Number.isFinite(event?.lat) && Number.isFinite(event?.lng)) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${event.lat},${event.lng}`)}`;
+  }
 
-  const provider = NAVIGATION_URL_BUILDERS[providerName] || NAVIGATION_URL_BUILDERS.google;
-  if (destination.type === "coordinates") return provider.byCoordinates(destination);
-  return provider.byAddress(destination.query);
+  const addressQuery = [event?.address, event?.city]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+  if (addressQuery) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`;
+  }
+
+  const fallbackQuery = [event?.location_name, event?.city, event?.country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+  if (!fallbackQuery) return "";
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackQuery)}`;
 }
 
-function openNavigationForEvent(event, providerName = DEFAULT_NAVIGATION_PROVIDER) {
-  const url = buildNavigationUrl(event, providerName);
+function openRoute(event) {
+  const url = buildNavigationUrl(event);
   if (!url) {
     setStatus(t("navigation_unavailable"), "warning");
     return;
@@ -2298,6 +2312,10 @@ function openNavigationForEvent(event, providerName = DEFAULT_NAVIGATION_PROVIDE
   if (!openedWindow) {
     window.location.href = url;
   }
+}
+
+function openNavigationForEvent(event) {
+  openRoute(event);
 }
 
 function normalizeFilterText(value) {
@@ -3111,7 +3129,16 @@ function createFeaturedCard(event) {
   const navigationUrl = buildNavigationUrl(event);
   const genre = splitGenres(event.genre)[0] || event.genre || "-";
   const artistName = String(event.artist_name || "").trim();
-  const featuredSubline = [artistName || null, event.city || event.location_name || "-"].filter(Boolean).join(" • ");
+  const locationLine = [event.location_name, event.city]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" · ");
+  const dateTimeLine = [formatDate(event.event_date, true), event.event_time || t("details_time_fallback")]
+    .filter(Boolean)
+    .join(" • ");
+  const featuredArtistLine = artistName
+    ? `<p class="featured-card__artist">🎤 ${artistName}</p>`
+    : "";
   card.innerHTML = `
     <div class="featured-card__media">
       ${
@@ -3123,7 +3150,9 @@ function createFeaturedCard(event) {
       <div class="featured-card__content">
         <span class="featured-card__badge">${genre}</span>
         <h3>${event.name}</h3>
-        <p>${formatDateTime(event)} • ${featuredSubline}</p>
+        ${featuredArtistLine}
+        <p class="featured-card__meta">📍 ${locationLine || "-"}</p>
+        <p class="featured-card__meta">${dateTimeLine}</p>
         <div class="featured-card__actions">
           <button type="button" class="button-secondary button-secondary--primary" data-action="featured-open">${t("featured_open")}</button>
           <button type="button" class="button-secondary" data-action="featured-navigate" ${navigationUrl ? "" : "disabled"}>${t("details_navigate")}</button>
@@ -3743,6 +3772,7 @@ function renderEventDetails(event) {
 
   dom.eventDetails.className = "event-details event-details--filled";
   const locationName = String(event.location_name || "").trim();
+  const venueCategory = String(event.venue_category || event.location_category || "").trim();
   const addressLine = [event.address, event.postal_code, event.city, event.country]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
@@ -3764,12 +3794,33 @@ function renderEventDetails(event) {
   const genreText = event.genre || "-";
   const priceText = formatPrice(event.price_text);
   const locationLead = locationName || event.city || fallbackLocationLine || "-";
-  const addressDetail = addressLine || [event.city, event.country].filter(Boolean).join(", ") || "-";
-  const navigationCta = navigationUrl
+  const addressOnlyLine = [event.address, event.postal_code]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  const cityCountryLine = [event.city, event.country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  const addressDetail = addressOnlyLine || cityCountryLine || "-";
+  const cityCountryMarkup = addressOnlyLine && cityCountryLine
+    ? `<p class="event-details__venue-detail">${cityCountryLine}</p>`
+    : "";
+  const locationExtraMarkup = venueCategory
+    ? `<p class="event-details__venue-detail event-details__location-extra">${venueCategory}</p>`
+    : "";
+  const descriptionText = String(event.description || t("details_no_description")).trim();
+  const descriptionMarkup = descriptionText
+    ? `<article class="event-details__section event-details__section--description">
+          <h5>${t("form_label_description")}</h5>
+          <p>${descriptionText}</p>
+       </article>`
+    : "";
+  const navigationCtaInline = navigationUrl
     ? `
       <button
         type="button"
-        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta"
+        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta event-details__navigate-inline"
         data-action="details-navigate"
         data-event-id="${event.id}"
       >
@@ -3779,7 +3830,7 @@ function renderEventDetails(event) {
     : `
       <button
         type="button"
-        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta"
+        class="button-secondary button-secondary--primary button-secondary--navigate event-details__navigate-cta event-details__navigate-inline"
         data-action="details-navigate"
         data-event-id="${event.id}"
         disabled
@@ -3798,39 +3849,33 @@ function renderEventDetails(event) {
       </div>
       <div class="event-details__content">
         <div class="event-details__header">
-          <h4>${event.name}</h4>
+          <div class="event-details__header-top">
+            <h4>${event.name}</h4>
+            ${navigationCtaInline}
+          </div>
           ${artistLine}
           ${additionalArtistsLine}
           <p class="event-details__location-lead">📍 ${locationLead}</p>
+          <p class="event-details__venue-detail">${addressDetail}</p>
+          ${cityCountryMarkup}
+          ${locationExtraMarkup}
           ${recurringLine}
         </div>
-        <div class="event-details__grid event-details__meta-grid">
-          <article class="event-details__card">
+        <div class="event-details__flow">
+          <article class="event-details__section">
             <h5>${t("details_date")}</h5>
-            <p>${dateText}</p>
-            <p class="event-details__muted">${timeText}</p>
+            <p>${dateText} • ${timeText}</p>
           </article>
-          <article class="event-details__card">
-            <h5>${t("details_location")}</h5>
-            <p>${locationLead}</p>
-            <p class="event-details__muted">${addressDetail}</p>
-          </article>
-          <article class="event-details__card">
+          <article class="event-details__section">
             <h5>${t("details_genre")}</h5>
             <p>${genreText}</p>
           </article>
-          <article class="event-details__card">
+          <article class="event-details__section">
             <h5>${t("details_price")}</h5>
             <p>${priceText}</p>
           </article>
         </div>
-        <article class="event-details__card event-details__card--description">
-          <h5>${t("form_label_description")}</h5>
-          <p>${event.description || t("details_no_description")}</p>
-        </article>
-        <div class="event-details__actions event-details__actions--bottom">
-          ${navigationCta}
-        </div>
+        ${descriptionMarkup}
       </div>
     </div>
   `;
