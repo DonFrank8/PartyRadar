@@ -3111,7 +3111,12 @@ function createFeaturedCard(event) {
   const navigationUrl = buildNavigationUrl(event);
   const genre = splitGenres(event.genre)[0] || event.genre || "-";
   const artistName = String(event.artist_name || "").trim();
-  const featuredSubline = [artistName || null, event.city || event.location_name || "-"].filter(Boolean).join(" • ");
+  const locationMeta = [formatDateTime(event), event.city || event.location_name || "-"]
+    .filter(Boolean)
+    .join(" • ");
+  const featuredArtistLine = artistName
+    ? `<p class="featured-card__artist">🎤 ${artistName}</p>`
+    : "";
   card.innerHTML = `
     <div class="featured-card__media">
       ${
@@ -3123,7 +3128,8 @@ function createFeaturedCard(event) {
       <div class="featured-card__content">
         <span class="featured-card__badge">${genre}</span>
         <h3>${event.name}</h3>
-        <p>${formatDateTime(event)} • ${featuredSubline}</p>
+        ${featuredArtistLine}
+        <p class="featured-card__meta">${locationMeta}</p>
         <div class="featured-card__actions">
           <button type="button" class="button-secondary button-secondary--primary" data-action="featured-open">${t("featured_open")}</button>
           <button type="button" class="button-secondary" data-action="featured-navigate" ${navigationUrl ? "" : "disabled"}>${t("details_navigate")}</button>
@@ -3743,6 +3749,7 @@ function renderEventDetails(event) {
 
   dom.eventDetails.className = "event-details event-details--filled";
   const locationName = String(event.location_name || "").trim();
+  const venueCategory = String(event.venue_category || event.location_category || "").trim();
   const addressLine = [event.address, event.postal_code, event.city, event.country]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
@@ -3765,6 +3772,14 @@ function renderEventDetails(event) {
   const priceText = formatPrice(event.price_text);
   const locationLead = locationName || event.city || fallbackLocationLine || "-";
   const addressDetail = addressLine || [event.city, event.country].filter(Boolean).join(", ") || "-";
+  const cityCountryLine = [event.city, event.country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  const locationExtraLine = venueCategory || cityCountryLine || "";
+  const locationExtraMarkup = locationExtraLine
+    ? `<p class="event-details__muted event-details__location-extra">${locationExtraLine}</p>`
+    : "";
   const navigationCta = navigationUrl
     ? `
       <button
@@ -3814,6 +3829,7 @@ function renderEventDetails(event) {
             <h5>${t("details_location")}</h5>
             <p>${locationLead}</p>
             <p class="event-details__muted">${addressDetail}</p>
+            ${locationExtraMarkup}
           </article>
           <article class="event-details__card">
             <h5>${t("details_genre")}</h5>
