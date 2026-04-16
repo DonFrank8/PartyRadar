@@ -2148,30 +2148,6 @@ function isStandaloneMode() {
   return isIosStandalone || isDisplayModeStandalone;
 }
 
-function isIosSafari() {
-  const userAgent = String(window.navigator.userAgent || "");
-  const isIos = /iphone|ipad|ipod/i.test(userAgent);
-  const isWebkit = /webkit/i.test(userAgent);
-  const isOtherBrowser = /crios|fxios|edgios|opios|mercury/i.test(userAgent);
-  return isIos && isWebkit && !isOtherBrowser;
-}
-
-function canShowIosInstallHint() {
-  return isIosSafari() && !isStandaloneMode();
-}
-
-function setViewportHeightVar() {
-  const viewportHeight = window.visualViewport?.height || window.innerHeight || 0;
-  if (!viewportHeight) return;
-  document.documentElement.style.setProperty("--app-vh", `${viewportHeight * 0.01}px`);
-}
-
-function setupViewportHeightSync() {
-  setViewportHeightVar();
-  window.addEventListener("resize", setViewportHeightVar);
-  window.visualViewport?.addEventListener("resize", setViewportHeightVar);
-}
-
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return Promise.resolve(null);
   if (serviceWorkerRegistrationPromise) return serviceWorkerRegistrationPromise;
@@ -2231,7 +2207,7 @@ function showInstallBanner() {
 
 function updateInstallBannerContent() {
   if (!dom.installBannerText || !dom.installBannerPrimary) return;
-  if (canShowIosInstallHint()) {
+  if (isIosDevice()) {
     dom.installBannerText.textContent = t("install_banner_text_ios");
     dom.installBannerPrimary.disabled = true;
     return;
@@ -2248,7 +2224,7 @@ function updateInstallBannerContent() {
 function canShowInstallBanner() {
   if (!dom.installBanner) return false;
   if (isStandaloneMode()) return false;
-  if (!canShowIosInstallHint() && !isAndroidDevice()) return false;
+  if (!isIosDevice() && !isAndroidDevice()) return false;
   if (isInstallBannerSuppressed(INSTALL_BANNER_DISMISS_STORAGE_KEY)) return false;
   if (isInstallBannerSuppressed(INSTALL_BANNER_INSTALLED_STORAGE_KEY)) return false;
   return true;
@@ -4989,7 +4965,6 @@ async function loadEvents() {
 
 async function startApp() {
   state.favoriteEventIds = loadFavoriteEventIds();
-  setupViewportHeightSync();
   registerServiceWorker();
   const query = readQueryParams();
   const requestedLang = resolveLanguage(query.lang);

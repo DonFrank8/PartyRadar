@@ -802,7 +802,7 @@ body.body--modal-open {
   display: grid;
   grid-template-columns: minmax(350px, 500px) minmax(0, 1fr);
   gap: 1.1rem;
-  min-height: calc(100dvh - 190px);
+  min-height: calc(100vh - 190px);
 }
 
 .sidebar,
@@ -1790,12 +1790,12 @@ body.body--modal-open {
 }
 
 .map-bottom-sheet[data-sheet-state="full"] .event-details {
-  max-height: calc(100dvh - 180px);
+  max-height: calc(100vh - 180px);
   overflow: auto;
 }
 
 .map-bottom-sheet[data-sheet-state="half"] .event-details {
-  max-height: calc(100dvh - 260px);
+  max-height: calc(100vh - 260px);
   overflow: auto;
 }
 
