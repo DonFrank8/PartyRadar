@@ -1128,6 +1128,7 @@ let activeMarkerId = null;
 let deferredInstallPromptEvent = null;
 let installBannerShowTimer = null;
 let serviceWorkerRegistrationPromise = null;
+let serviceWorkerHasRefreshed = false;
 const throttledSelectEventMapFocus = throttle((event, zoom) => {
   flyToEventWithMapSheetOffset(event, zoom);
 }, 180);
@@ -2218,9 +2219,35 @@ function registerServiceWorker() {
   if (serviceWorkerRegistrationPromise) return serviceWorkerRegistrationPromise;
 
   serviceWorkerRegistrationPromise = new Promise((resolve) => {
+    const setupServiceWorkerUpdateHandling = (registration) => {
+      if (!registration) return;
+
+      // Trigger update check after first registration.
+      registration.update().catch(() => {});
+
+      registration.addEventListener("updatefound", () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) return;
+        installingWorker.addEventListener("statechange", () => {
+          if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+            console.log("[Marcha PWA] New version installed, waiting for activation.");
+          }
+        });
+      });
+    };
+
+    const handleControllerChange = () => {
+      if (serviceWorkerHasRefreshed) return;
+      serviceWorkerHasRefreshed = true;
+      console.log("[Marcha PWA] Controller changed, reloading app for latest assets.");
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+
     const registerNow = () => {
-      navigator.serviceWorker.register("/service-worker.js")
+      navigator.serviceWorker.register("/service-worker.js", { updateViaCache: "none" })
         .then((registration) => {
+          setupServiceWorkerUpdateHandling(registration);
           console.log("[Marcha PWA] Service worker registered:", registration.scope);
           resolve(registration);
         })
