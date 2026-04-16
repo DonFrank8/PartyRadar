@@ -189,6 +189,8 @@ const DATE_PRESET_IDS = Object.freeze({
   NEXT_WEEKEND: "next-weekend",
   CUSTOM: "custom"
 });
+const NEARBY_RADIUS_OPTIONS = Object.freeze([5, 10, 25, 50]);
+const DEFAULT_NEARBY_RADIUS_KM = 10;
 
 const NAVIGATION_URL_BUILDERS = {
   google: {
@@ -253,6 +255,9 @@ const I18N = {
     filter_time_custom: "Datum wählen",
     filter_time_custom_start: "Von",
     filter_time_custom_end: "Bis",
+    filter_nearby_toggle: "In meiner Nähe",
+    filter_nearby_radius: "Radius",
+    filter_nearby_hint: "Standortzugriff aktivieren, um Nähe-Filter zu nutzen.",
     filter_genre: "Genres",
     filter_genre_all: "Alle Genres",
     filter_reset: "Alle Filter zurücksetzen",
@@ -281,6 +286,8 @@ const I18N = {
     details_free: "Eintritt frei",
     details_no_description: "Keine Beschreibung vorhanden.",
     details_time_fallback: "Uhrzeit folgt",
+    distance_under_1km: "unter 1 km",
+    distance_km_away: "{distance} km entfernt",
     navigation_unavailable: "Für dieses Event sind keine Navigationsdaten vorhanden.",
     debug_no_error: "Nein",
     debug_note_pending: "Noch keine Entscheidung",
@@ -462,6 +469,9 @@ const I18N = {
     filter_time_custom: "Pick date",
     filter_time_custom_start: "Start",
     filter_time_custom_end: "End",
+    filter_nearby_toggle: "Near me",
+    filter_nearby_radius: "Radius",
+    filter_nearby_hint: "Enable location access to use nearby filtering.",
     filter_genre: "Genres",
     filter_genre_all: "All genres",
     filter_reset: "Reset all filters",
@@ -490,6 +500,8 @@ const I18N = {
     details_free: "Free entry",
     details_no_description: "No description available.",
     details_time_fallback: "Time TBD",
+    distance_under_1km: "under 1 km",
+    distance_km_away: "{distance} km away",
     navigation_unavailable: "No navigation data is available for this event.",
     debug_no_error: "No",
     debug_note_pending: "No decision yet",
@@ -671,6 +683,9 @@ const I18N = {
     filter_time_custom: "Elegir fecha",
     filter_time_custom_start: "Desde",
     filter_time_custom_end: "Hasta",
+    filter_nearby_toggle: "Cerca de mí",
+    filter_nearby_radius: "Radio",
+    filter_nearby_hint: "Activa la ubicación para usar el filtro cercano.",
     filter_genre: "Géneros",
     filter_genre_all: "Todos los géneros",
     filter_reset: "Restablecer filtros",
@@ -699,6 +714,8 @@ const I18N = {
     details_free: "Entrada gratuita",
     details_no_description: "No hay descripción disponible.",
     details_time_fallback: "Hora por confirmar",
+    distance_under_1km: "menos de 1 km",
+    distance_km_away: "a {distance} km",
     navigation_unavailable: "No hay datos de navegación disponibles para este evento.",
     debug_no_error: "No",
     debug_note_pending: "Sin decisión todavía",
@@ -854,6 +871,7 @@ const state = {
   allEvents: [],
   moderationEvents: [],
   filteredEvents: [],
+  userLocation: null,
   selectedEventId: null,
   activeEventId: null,
   activeEvent: null,
@@ -868,6 +886,9 @@ const state = {
     end: null
   },
   activeDatePreset: "",
+  nearbyOnly: false,
+  radiusKm: DEFAULT_NEARBY_RADIUS_KM,
+  nearbyHintVisible: false,
   discoverySort: "soonest",
   activeQuickCategoryId: "all",
   viewMode: "list",
@@ -901,6 +922,8 @@ const state = {
     fallbackReason: ""
   }
 };
+
+const EARTH_RADIUS_KM = 6371;
 
 const dom = {
   htmlRoot: document.documentElement,
@@ -961,6 +984,10 @@ const dom = {
   customDateRange: document.getElementById("customDateRange"),
   dateRangeStart: document.getElementById("dateRangeStart"),
   dateRangeEnd: document.getElementById("dateRangeEnd"),
+  nearbyToggle: document.getElementById("nearbyToggle"),
+  nearbyRadiusWrap: document.getElementById("nearbyRadiusWrap"),
+  nearbyRadiusGroup: document.getElementById("nearbyRadiusGroup"),
+  nearbyHint: document.getElementById("nearbyHint"),
   genreFilterGroup: document.getElementById("genreFilterGroup"),
   clearGenresButton: document.getElementById("clearGenresButton"),
   resetFilters: document.getElementById("resetFilters"),
@@ -2582,6 +2609,8 @@ function readQueryParams() {
     dateStart: params.get("date_start") || "",
     dateEnd: params.get("date_end") || "",
     datePreset: params.get("date_preset") || "",
+    nearby: params.get("nearby") || "",
+    radius: params.get("radius") || "",
     admin: params.get("admin") || "",
     genres: (params.get("genres") || "")
       .split(",")
@@ -2606,6 +2635,10 @@ function updateUrlFromFilters() {
   if (search) params.set("q", search);
   if (city) params.set("city", city);
   if (activeDatePreset) params.set("date_preset", activeDatePreset);
+  if (state.nearbyOnly) {
+    params.set("nearby", "1");
+    params.set("radius", String(state.radiusKm));
+  }
   if (dateRange.start && dateRange.end) {
     params.set("date_start", formatIsoDate(dateRange.start));
     params.set("date_end", formatIsoDate(dateRange.end));
@@ -2817,6 +2850,13 @@ function applyFiltersFromQuery() {
   } else {
     setDateRangeState({ start: null, end: null }, "");
   }
+  const requestedNearby = String(query.nearby || "").trim().toLowerCase();
+  const wantsNearby = requestedNearby === "1" || requestedNearby === "true";
+  setNearbyFilterState({
+    nearbyOnly: wantsNearby && hasUserLocation(),
+    radiusKm: query.radius,
+    showHint: wantsNearby && !hasUserLocation()
+  });
   state.activeGenres = new Set(normalizeRequestedGenres(query.genres));
   renderGenreFilter();
   syncHeroControlsFromSidebar();
@@ -2825,12 +2865,15 @@ function applyFiltersFromQuery() {
 
 function getActiveFilters() {
   const activeQuickCategory = quickCategoryById(state.activeQuickCategoryId);
+  const hasUserCoordinates = hasUserLocation();
   return {
     search: normalizeFilterText(dom.searchInput.value),
     city: dom.cityFilter.value,
     dateRange: cloneDateRange(state.dateRange),
     genres: new Set([...state.activeGenres].map((genre) => genre.toLowerCase())),
-    quickKeywords: activeQuickCategory.keywords.map((keyword) => keyword.toLowerCase())
+    quickKeywords: activeQuickCategory.keywords.map((keyword) => keyword.toLowerCase()),
+    nearbyOnly: state.nearbyOnly && hasUserCoordinates,
+    radiusKm: normalizeRadiusKm(state.radiusKm)
   };
 }
 
@@ -2881,6 +2924,152 @@ function updateLocationChipLabel() {
   dom.locationChipLabel.textContent = selectedCity || t("hero_location_label");
 }
 
+function hasUserLocation() {
+  return Number.isFinite(state.userLocation?.lat) && Number.isFinite(state.userLocation?.lng);
+}
+
+function normalizeRadiusKm(value) {
+  const radius = Number(value);
+  if (!Number.isFinite(radius)) return DEFAULT_NEARBY_RADIUS_KM;
+  if (!NEARBY_RADIUS_OPTIONS.includes(radius)) return DEFAULT_NEARBY_RADIUS_KM;
+  return radius;
+}
+
+function renderNearbyRadiusButtons() {
+  if (!dom.nearbyRadiusGroup) return;
+  dom.nearbyRadiusGroup.querySelectorAll("button[data-radius-km]").forEach((button) => {
+    const radiusKm = normalizeRadiusKm(button.dataset.radiusKm || "");
+    const isActive = radiusKm === state.radiusKm;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function renderNearbyFilterControls() {
+  const hasLocation = hasUserLocation();
+  if (dom.nearbyToggle) {
+    const isActive = state.nearbyOnly && hasLocation;
+    dom.nearbyToggle.classList.toggle("is-active", isActive);
+    dom.nearbyToggle.classList.toggle("is-pending-location", !hasLocation);
+    dom.nearbyToggle.setAttribute("aria-pressed", String(isActive));
+  }
+  const showRadiusControls = state.nearbyOnly && hasLocation;
+  if (dom.nearbyRadiusWrap) {
+    dom.nearbyRadiusWrap.hidden = !showRadiusControls;
+    dom.nearbyRadiusWrap.setAttribute("aria-hidden", String(!showRadiusControls));
+  }
+  if (dom.nearbyHint) {
+    const showHint = !hasLocation && state.nearbyHintVisible;
+    dom.nearbyHint.hidden = !showHint;
+    dom.nearbyHint.setAttribute("aria-hidden", String(!showHint));
+  }
+  renderNearbyRadiusButtons();
+}
+
+function setNearbyFilterState({ nearbyOnly = state.nearbyOnly, radiusKm = state.radiusKm, showHint = state.nearbyHintVisible } = {}) {
+  state.nearbyOnly = Boolean(nearbyOnly);
+  state.radiusKm = normalizeRadiusKm(radiusKm);
+  state.nearbyHintVisible = Boolean(showHint);
+  renderNearbyFilterControls();
+}
+
+function toRadians(value) {
+  return (value * Math.PI) / 180;
+}
+
+function getDistanceKm(lat1, lng1, lat2, lng2) {
+  const points = [lat1, lng1, lat2, lng2].map((value) => Number(value));
+  if (points.some((value) => !Number.isFinite(value))) return null;
+  const [safeLat1, safeLng1, safeLat2, safeLng2] = points;
+  const dLat = toRadians(safeLat2 - safeLat1);
+  const dLng = toRadians(safeLng2 - safeLng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRadians(safeLat1)) * Math.cos(toRadians(safeLat2)) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return EARTH_RADIUS_KM * c;
+}
+
+function formatDistanceLabel(distanceKm) {
+  if (!Number.isFinite(distanceKm)) return "";
+  if (distanceKm < 1) return `📍 ${t("distance_under_1km")}`;
+  return `📍 ${t("distance_km_away", { distance: distanceKm.toFixed(1) })}`;
+}
+
+function formatDistanceLabelShort(distanceKm) {
+  if (!Number.isFinite(distanceKm)) return "";
+  if (distanceKm < 1) return t("distance_under_1km");
+  return t("distance_km_away", { distance: distanceKm.toFixed(1) });
+}
+
+function withDistanceForEvent(event) {
+  const hasEventCoordinates = Number.isFinite(event?.lat) && Number.isFinite(event?.lng);
+  const hasUserCoordinates = Number.isFinite(state.userLocation?.lat) && Number.isFinite(state.userLocation?.lng);
+  if (!hasEventCoordinates || !hasUserCoordinates) {
+    return {
+      ...event,
+      distance_km: null
+    };
+  }
+  return {
+    ...event,
+    distance_km: getDistanceKm(state.userLocation.lat, state.userLocation.lng, event.lat, event.lng)
+  };
+}
+
+function applyDistanceData(events) {
+  return events.map((event) => withDistanceForEvent(event));
+}
+
+async function ensureUserLocation() {
+  if (hasUserLocation()) return true;
+  const nextLocation = await requestUserLocation();
+  if (!nextLocation) return false;
+  state.userLocation = nextLocation;
+  state.allEvents = applyDistanceData(state.allEvents);
+  return true;
+}
+
+function requestUserLocation() {
+  return new Promise((resolve) => {
+    if (!navigator?.geolocation?.getCurrentPosition) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = Number(position?.coords?.latitude);
+        const lng = Number(position?.coords?.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          resolve(null);
+          return;
+        }
+        resolve({ lat, lng });
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 300000
+      }
+    );
+  });
+}
+
+function enrichDistanceSlots() {
+  if (!dom.eventDetails) return;
+  const hasUserLocation = Number.isFinite(state.userLocation?.lat) && Number.isFinite(state.userLocation?.lng);
+  dom.eventDetails.querySelectorAll("[data-distance-slot]").forEach((slot) => {
+    const lat = Number(slot.getAttribute("data-lat"));
+    const lng = Number(slot.getAttribute("data-lng"));
+    if (!hasUserLocation || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      slot.textContent = "";
+      return;
+    }
+    const distanceKm = getDistanceKm(state.userLocation.lat, state.userLocation.lng, lat, lng);
+    slot.textContent = distanceKm === null ? "" : formatDistanceLabel(distanceKm);
+  });
+}
+
 function eventMatchesGenres(event, activeGenresLower) {
   if (!activeGenresLower.size) return true;
   const eventGenresLower = splitGenres(event.genre).map((genre) => genre.toLowerCase());
@@ -2889,6 +3078,17 @@ function eventMatchesGenres(event, activeGenresLower) {
 
 function applyDiscoverySort(events) {
   const entries = [...events];
+  const hasCoordinates = hasUserLocation();
+  if (state.nearbyOnly && hasCoordinates) {
+    return entries.sort((a, b) => {
+      const hasDistanceA = Number.isFinite(a?.distance_km);
+      const hasDistanceB = Number.isFinite(b?.distance_km);
+      if (hasDistanceA && hasDistanceB && a.distance_km !== b.distance_km) return a.distance_km - b.distance_km;
+      if (hasDistanceA && !hasDistanceB) return -1;
+      if (!hasDistanceA && hasDistanceB) return 1;
+      return eventTimestamp(a) - eventTimestamp(b);
+    });
+  }
   if (state.discoverySort === "nearby" && map) {
     const center = map.getCenter();
     return entries.sort((a, b) => {
@@ -2932,6 +3132,10 @@ function applyFilters() {
       if (!hasQuickMatch) return false;
     }
     if (filters.search && !haystack.includes(filters.search)) return false;
+    if (filters.nearbyOnly) {
+      if (!Number.isFinite(event.distance_km)) return false;
+      if (event.distance_km > filters.radiusKm) return false;
+    }
     return true;
   });
   state.filteredEvents = applyDiscoverySort(filtered);
@@ -2954,6 +3158,7 @@ function applyFilters() {
   }
   setStatus(t("result_count", { count: state.filteredEvents.length }), sourceTone());
   updateLocationChipLabel();
+  enrichDistanceSlots();
   updateUrlFromFilters();
 }
 
@@ -3524,6 +3729,9 @@ function createEventCard(event, index = 0) {
   card.style.setProperty("--card-index", String(index));
   const primaryGenre = splitGenres(event.genre)[0] || event.genre || "-";
   const favoriteActive = isFavoriteEvent(event.id);
+  const distanceLine = Number.isFinite(event.distance_km)
+    ? `<p class="event-card__line event-card__line--distance">${formatDistanceLabel(event.distance_km)}</p>`
+    : "";
   card.innerHTML = `
     <div class="event-card__media">
       ${
@@ -3547,6 +3755,7 @@ function createEventCard(event, index = 0) {
         <h4 class="event-card__title">${event.name}</h4>
         <div class="event-card_artist">${event.artist_name ? `Mit ${event.artist_name}` : ""}</div>
       </div>
+      ${distanceLine}
       <p class="event-card__line event-card__line--datetime">🗓 ${formatDateTime(event)}</p>
       <p class="event-card__line event-card__line--location">📍 ${formatEventPlace(event)}</p>
       <div class="event-card__chips">
@@ -3986,6 +4195,7 @@ function resetFilters() {
   dom.searchInput.value = "";
   dom.cityFilter.value = "";
   setDateRangeState({ start: null, end: null }, "");
+  setNearbyFilterState({ nearbyOnly: false, radiusKm: DEFAULT_NEARBY_RADIUS_KM, showHint: false });
   syncHeroControlsFromSidebar();
   state.activeGenres.clear();
   renderGenreFilter();
@@ -4181,6 +4391,36 @@ function bindEvents() {
   }
   if (dom.dateRangeEnd) {
     dom.dateRangeEnd.addEventListener("change", handleCustomDateRangeInputChange);
+  }
+  if (dom.nearbyToggle) {
+    dom.nearbyToggle.addEventListener("click", async () => {
+      if (state.nearbyOnly) {
+        setNearbyFilterState({ nearbyOnly: false, showHint: false });
+        applyFilters();
+        return;
+      }
+      const locationReady = await ensureUserLocation();
+      if (!locationReady) {
+        setNearbyFilterState({ nearbyOnly: false, showHint: true });
+        applyFilters();
+        return;
+      }
+      setNearbyFilterState({ nearbyOnly: true, showHint: false });
+      applyFilters();
+    });
+  }
+  if (dom.nearbyRadiusGroup) {
+    dom.nearbyRadiusGroup.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const button = target?.closest("button[data-radius-km]");
+      if (!button) return;
+      setNearbyFilterState({
+        nearbyOnly: state.nearbyOnly,
+        radiusKm: button.dataset.radiusKm || state.radiusKm,
+        showHint: state.nearbyHintVisible
+      });
+      if (state.nearbyOnly) applyFilters();
+    });
   }
   if (dom.heroSearchInput) {
     dom.heroSearchInput.addEventListener("input", () => {
@@ -4579,7 +4819,7 @@ async function loadEvents() {
     }
 
     state.moderationEvents = isSessionAdmin(state.adminSession) ? data : [];
-    state.allEvents = expandRecurringEvents(data.filter(isApprovedEvent));
+    state.allEvents = applyDistanceData(expandRecurringEvents(data.filter(isApprovedEvent)));
     state.sourceType = "supabase";
     state.debug.fallbackReason = t("debug_note_supabase");
     if (state.isAdminMode && isSessionAdmin(state.adminSession)) {
@@ -4617,7 +4857,9 @@ async function startApp() {
   initMap();
   setViewMode("list");
   bindEvents();
+  renderNearbyFilterControls();
   setupInstallBanner();
+  state.userLocation = await requestUserLocation();
   await checkAdminSession();
   await loadEvents();
   updateFilterOptions();
