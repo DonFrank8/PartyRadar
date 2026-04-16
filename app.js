@@ -23,6 +23,8 @@ const INSTALL_BANNER_DISMISS_DAYS = 5;
 const INSTALL_BANNER_INSTALLED_DAYS = 180;
 const MOBILE_INSTALL_CTA_DISMISS_DAYS = 21;
 const INSTALL_BANNER_SHOW_DELAY_MS = 2800;
+const ENABLE_LEGACY_INSTALL_BANNER = false;
+const INSTALL_UI_DEBUG = true;
 
 window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
 
@@ -2295,6 +2297,35 @@ function isInstallSuppressed(dismissStorageKey) {
   return false;
 }
 
+function getInstallDebugSnapshot() {
+  const standalone = isRunningStandalone();
+  const installedSuppressed = isInstallBannerSuppressed(INSTALL_BANNER_INSTALLED_STORAGE_KEY);
+  const bannerDismissed = isInstallBannerSuppressed(INSTALL_BANNER_DISMISS_STORAGE_KEY);
+  const mobileDismissed = isInstallBannerSuppressed(MOBILE_INSTALL_CTA_DISMISS_STORAGE_KEY);
+  const hasDeferredPrompt = Boolean(deferredInstallPromptEvent);
+  const mobileEntryVisible = Boolean(dom.mobileInstallEntry && !dom.mobileInstallEntry.hidden);
+  const bannerVisible = Boolean(dom.installBanner && !dom.installBanner.hidden);
+  const relevantSurface = isInstallSurfaceRelevant();
+  const mobileViewport = window.matchMedia?.("(max-width: 780px)")?.matches === true;
+  return {
+    standalone,
+    installedSuppressed,
+    bannerDismissed,
+    mobileDismissed,
+    hasDeferredPrompt,
+    relevantSurface,
+    mobileViewport,
+    mobileEntryVisible,
+    bannerVisible
+  };
+}
+
+function logInstallUiState(reason, extra = {}) {
+  if (!INSTALL_UI_DEBUG) return;
+  const snapshot = getInstallDebugSnapshot();
+  console.log("[Marcha Install Debug]", reason, { ...snapshot, ...extra });
+}
+
 function isInstallSurfaceRelevant() {
   return isIosDevice() || isAndroidDevice();
 }
@@ -2335,6 +2366,7 @@ function updateInstallBannerContent() {
 
 function canShowInstallBanner() {
   if (!dom.installBanner) return false;
+  if (!ENABLE_LEGACY_INSTALL_BANNER) return false;
   if (!isInstallSurfaceRelevant()) return false;
   if (dom.mobileInstallEntry) return false;
   if (isInstallSuppressed(INSTALL_BANNER_DISMISS_STORAGE_KEY)) return false;
@@ -2386,6 +2418,7 @@ function setupMobileInstallEntry() {
 
 function updateInstallUiVisibility() {
   syncInstalledStateFromStandalone();
+  logInstallUiState("recompute:start");
 
   if (installBannerShowTimer) {
     window.clearTimeout(installBannerShowTimer);
@@ -2395,6 +2428,7 @@ function updateInstallUiVisibility() {
   if (isRunningStandalone()) {
     hideInstallBanner();
     hideMobileInstallEntry();
+    logInstallUiState("recompute:standalone-hide-all");
     return;
   }
 
@@ -2404,21 +2438,29 @@ function updateInstallUiVisibility() {
   if (canShowMobileInstallEntry()) {
     hideInstallBanner();
     showMobileInstallEntry();
+    logInstallUiState("recompute:show-mobile-entry");
     return;
   }
   hideMobileInstallEntry();
 
   if (!canShowInstallBanner()) {
     hideInstallBanner();
+    logInstallUiState("recompute:hide-all-no-surface");
     return;
   }
 
   installBannerShowTimer = window.setTimeout(() => {
     if (isRunningStandalone()) {
       hideInstallBanner();
+      logInstallUiState("banner-timer:cancel-standalone");
       return;
     }
-    if (canShowInstallBanner()) showInstallBanner();
+    if (canShowInstallBanner()) {
+      showInstallBanner();
+      logInstallUiState("banner-timer:show-banner");
+    } else {
+      logInstallUiState("banner-timer:skip-banner");
+    }
   }, INSTALL_BANNER_SHOW_DELAY_MS);
 }
 
@@ -4689,15 +4731,18 @@ function bindEvents() {
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     deferredInstallPromptEvent = event;
+    logInstallUiState("event:beforeinstallprompt");
     updateInstallUiVisibility();
   });
   window.addEventListener("appinstalled", () => {
     deferredInstallPromptEvent = null;
     persistInstallBannerTimestamp(INSTALL_BANNER_INSTALLED_STORAGE_KEY, INSTALL_BANNER_INSTALLED_DAYS);
+    logInstallUiState("event:appinstalled");
     updateInstallUiVisibility();
   });
   const standaloneDisplayQuery = window.matchMedia?.("(display-mode: standalone)");
   standaloneDisplayQuery?.addEventListener?.("change", () => {
+    logInstallUiState("event:display-mode-change");
     updateInstallUiVisibility();
   });
   dom.searchInput.addEventListener("input", () => {
