@@ -68,6 +68,7 @@ body {
   min-height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
+  position: relative;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   padding-top: max(0px, env(safe-area-inset-top));
@@ -805,7 +806,7 @@ body.body--modal-open {
   display: grid;
   grid-template-columns: minmax(350px, 500px) minmax(0, 1fr);
   gap: 1.1rem;
-  min-height: calc((var(--app-vh, 1vh) * 100) - 190px);
+  min-height: auto;
 }
 
 .sidebar,
@@ -1190,9 +1191,10 @@ body.body--modal-open {
 .event-list {
   display: grid;
   gap: 1rem;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: visible;
   -webkit-overflow-scrolling: touch;
-  max-height: 40vh;
+  max-height: none;
   padding-right: 0.18rem;
 }
 
@@ -2665,7 +2667,9 @@ body.body--modal-open {
   }
 
   .event-list {
-    max-height: 34vh;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .event-details__layout {
@@ -2783,7 +2787,9 @@ body.body--modal-open {
   }
 
   .event-list {
-    max-height: 42vh;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .event-card {
