@@ -2338,6 +2338,10 @@ function syncInstalledStateFromStandalone() {
 
 function hideInstallBanner() {
   if (!dom.installBanner) return;
+  if (installBannerShowTimer) {
+    window.clearTimeout(installBannerShowTimer);
+    installBannerShowTimer = null;
+  }
   dom.installBanner.classList.remove("is-visible");
   dom.installBanner.hidden = true;
 }
@@ -4886,7 +4890,7 @@ function bindEvents() {
   if (dom.installBannerDismiss) {
     dom.installBannerDismiss.addEventListener("click", () => {
       persistInstallBannerTimestamp(INSTALL_BANNER_DISMISS_STORAGE_KEY, INSTALL_BANNER_DISMISS_DAYS);
-      hideInstallBanner();
+      updateInstallUiVisibility();
     });
   }
   if (dom.mobileInstallEntryCta) {
@@ -4897,7 +4901,7 @@ function bindEvents() {
   if (dom.mobileInstallEntryDismiss) {
     dom.mobileInstallEntryDismiss.addEventListener("click", () => {
       persistInstallBannerTimestamp(MOBILE_INSTALL_CTA_DISMISS_STORAGE_KEY, MOBILE_INSTALL_CTA_DISMISS_DAYS);
-      hideMobileInstallEntry();
+      updateInstallUiVisibility();
     });
   }
   if (dom.bottomNavSubmit) {
