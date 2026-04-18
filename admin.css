@@ -83,6 +83,10 @@ body {
   z-index: 2;
 }
 
+.admin-brand__logo--icon {
+  display: none;
+}
+
 .brand-logo {
   display: block;
   width: auto;
@@ -95,17 +99,6 @@ body {
   box-shadow: none;
   opacity: 1;
   visibility: visible;
-}
-
-.brand-logo.brand-logo--full {
-  display: none;
-}
-
-.brand-logo img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
 }
 
 .admin-header__brand-text {
@@ -526,6 +519,14 @@ body {
     align-self: flex-start;
     padding: 0;
     gap: 0.56rem;
+  }
+
+  .admin-brand__logo--full {
+    display: none;
+  }
+
+  .admin-brand__logo--icon {
+    display: block;
   }
 
   .brand-logo {
