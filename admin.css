@@ -74,7 +74,7 @@ body {
 .admin-header__brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.72rem;
+  gap: 0;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -84,6 +84,10 @@ body {
 }
 
 .brand-logo {
+  display: none !important;
+}
+
+.admin-brand__logo--header {
   display: block;
   width: auto;
   height: 54px;
@@ -95,25 +99,6 @@ body {
   box-shadow: none;
   opacity: 1;
   visibility: visible;
-}
-
-.brand-logo.brand-logo--full {
-  display: none;
-}
-
-.brand-logo img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-}
-
-.admin-header__brand-text {
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: #eef3ff;
-  line-height: 1;
 }
 
 .admin-header__eyebrow {
@@ -525,18 +510,14 @@ body {
   .admin-header__brand {
     align-self: flex-start;
     padding: 0;
-    gap: 0.56rem;
+    gap: 0;
   }
 
-  .brand-logo {
+  .admin-brand__logo--header {
     width: auto;
     height: 48px;
     min-width: 48px;
     min-height: 48px;
-  }
-
-  .admin-header__brand-text {
-    font-size: 1.15rem;
   }
 
   .filter-grid {
@@ -614,14 +595,10 @@ body {
     padding: 0;
   }
 
-  .brand-logo {
+  .admin-brand__logo--header {
     width: auto;
     height: 36px;
     min-width: 36px;
     min-height: 36px;
-  }
-
-  .admin-header__brand-text {
-    font-size: 1.05rem;
   }
 }
