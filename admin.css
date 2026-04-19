@@ -113,12 +113,23 @@ body {
 .admin-header h1 {
   margin: 0.18rem 0 0;
   font-size: clamp(1.2rem, 2.8vw, 1.85rem);
+  font-family: "Poppins", Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  color: #f6f9ff;
+  text-shadow:
+    0 0 12px rgba(236, 72, 153, 0.16),
+    0 0 26px rgba(124, 58, 237, 0.12);
 }
 
 .admin-header__subtitle {
   margin: 0.35rem 0 0;
-  color: var(--muted);
+  color: #c9d8f7;
   font-size: 0.89rem;
+  font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  line-height: 1.48;
+  letter-spacing: 0.01em;
 }
 
 .admin-shell {

@@ -519,27 +519,28 @@ body.body--modal-open {
   max-width: 900px;
   font-size: clamp(2.4rem, 5vw, 4.2rem);
   line-height: 1.05;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.024em;
   font-weight: 700;
   color: #ffffff;
   text-align: center;
   text-wrap: balance;
   text-shadow:
-    0 0 18px rgba(236, 72, 153, 0.18),
-    0 0 40px rgba(124, 58, 237, 0.12);
+    0 0 16px rgba(236, 72, 153, 0.2),
+    0 0 34px rgba(124, 58, 237, 0.14);
   font-family: "Poppins", sans-serif;
 }
 
 .hero__subtitle {
   animation: heroHeadlineIn 620ms var(--ease-out) both;
-  margin: 0.66rem auto 0;
-  max-width: 660px;
-  color: #cbd5f5;
+  margin: 0.72rem auto 0;
+  max-width: 640px;
+  color: #d1ddfb;
   text-align: center;
   font-size: clamp(1rem, 2vw, 1.15rem);
   font-family: "Inter", sans-serif;
   font-weight: 500;
-  line-height: 1.58;
+  line-height: 1.6;
+  letter-spacing: 0.006em;
 }
 
 .hero__chips {
