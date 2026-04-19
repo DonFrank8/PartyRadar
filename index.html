@@ -12,10 +12,13 @@
   <meta name="apple-mobile-web-app-title" content="Marcha">
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/assets/app-icon.png">
-  <link rel="icon" type="image/png" href="/assets/favicon.png">
+  <link rel="apple-touch-icon" href="./assets/app-icon.png">
+  <link rel="icon" type="image/png" href="./assets/favicon.png">
   <title>Marcha | Live-Musik &amp; Events entdecken</title>
   <meta name="description" content="Entdecke mit Marcha Live-Musik, DJs, Clubs und Events auf einer interaktiven Karte — kuratiert und nah bei dir.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script>
     (function () {
@@ -35,23 +38,13 @@
       <div class="hero__topbar">
         <div class="hero__brand" aria-label="Marcha">
           <img
-            class="brand-logo brand-logo--full"
-            src="/assets/logo.png"
+            class="brand-logo--header"
+            src="/assets/logo-schrift.png"
             alt="Marcha"
-            width="168"
-            height="48"
+            width="260"
+            height="60"
             decoding="async"
           >
-          <img
-            class="brand-logo brand-logo--icon"
-            src="/assets/icon.png"
-            alt=""
-            aria-hidden="true"
-            width="48"
-            height="48"
-            decoding="async"
-          >
-          <span class="brand-wordmark">Marcha</span>
         </div>
         <div class="hero__top-actions">
           <span class="hero-beta-pill" data-i18n="hero_beta_label">Early Access</span>
