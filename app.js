@@ -19,6 +19,7 @@ const SUBMITTER_PROFILE_STORAGE_KEY = "vibeon.submitterProfile.v1";
 const INSTALL_BANNER_DISMISS_STORAGE_KEY = "vibeon.installBanner.dismissedUntil";
 const INSTALL_BANNER_INSTALLED_STORAGE_KEY = "vibeon.installBanner.installedUntil";
 const MOBILE_INSTALL_CTA_DISMISS_STORAGE_KEY = "vibeon.installCta.dismissedUntil";
+const USER_LOCATION_STORAGE_KEY = "vibeon.userLocation.v1";
 const INSTALL_BANNER_DISMISS_DAYS = 5;
 const INSTALL_BANNER_INSTALLED_DAYS = 180;
 const MOBILE_INSTALL_CTA_DISMISS_DAYS = 21;
@@ -959,6 +960,7 @@ const state = {
   allEvents: [],
   moderationEvents: [],
   filteredEvents: [],
+  eventsLoaded: false,
   userLocation: null,
   selectedEventId: null,
   activeEventId: null,
@@ -977,6 +979,7 @@ const state = {
   nearbyOnly: false,
   radiusKm: DEFAULT_NEARBY_RADIUS_KM,
   nearbyHintVisible: false,
+  locationPermissionState: "unknown",
   discoverySort: "soonest",
   activeQuickCategoryId: "all",
   viewMode: "list",
@@ -1131,6 +1134,7 @@ let deferredInstallPromptEvent = null;
 let installBannerShowTimer = null;
 let serviceWorkerRegistrationPromise = null;
 let serviceWorkerHasRefreshed = false;
+let locationRequestInFlightPromise = null;
 const throttledSelectEventMapFocus = throttle((event, zoom) => {
   flyToEventWithMapSheetOffset(event, zoom);
 }, 180);
@@ -2206,10 +2210,14 @@ function isAndroidDevice() {
   return /android/i.test(window.navigator.userAgent || "");
 }
 
-function isRunningStandalone() {
-  const isIosStandalone = window.navigator.standalone === true;
+function isAppInstalled() {
   const isDisplayModeStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches === true;
-  return isIosStandalone || isDisplayModeStandalone;
+  const isIosStandalone = window.navigator.standalone === true;
+  return isDisplayModeStandalone || isIosStandalone;
+}
+
+function isRunningStandalone() {
+  return isAppInstalled();
 }
 
 function isStandaloneMode() {
@@ -2386,6 +2394,8 @@ function setupInstallBanner() {
 
 function hideMobileInstallEntry() {
   if (!dom.mobileInstallEntry) return;
+  // Force-hide to avoid any responsive CSS overrides leaking visibility.
+  dom.mobileInstallEntry.style.display = "none";
   dom.mobileInstallEntry.classList.remove("is-visible");
   dom.mobileInstallEntry.hidden = true;
   if (dom.mobileInstallEntryHelper) dom.mobileInstallEntryHelper.hidden = true;
@@ -2394,8 +2404,17 @@ function hideMobileInstallEntry() {
 
 function showMobileInstallEntry() {
   if (!dom.mobileInstallEntry) return;
+  dom.mobileInstallEntry.style.removeProperty("display");
   dom.mobileInstallEntry.hidden = false;
   window.requestAnimationFrame(() => dom.mobileInstallEntry?.classList.add("is-visible"));
+}
+
+function suppressInstallUiOnAppLoad() {
+  if (!isAppInstalled()) return;
+  syncInstalledStateFromStandalone();
+  hideInstallBanner();
+  hideMobileInstallEntry();
+  logInstallUiState("load:installed-hide-install-ui");
 }
 
 function updateMobileInstallEntryContent() {
@@ -3334,6 +3353,72 @@ function hasUserLocation() {
   return Number.isFinite(state.userLocation?.lat) && Number.isFinite(state.userLocation?.lng);
 }
 
+function hasValidEventCoordinates(event) {
+  const lat = Number(event?.lat);
+  const lng = Number(event?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return false;
+  return true;
+}
+
+function getMappableEvents(events) {
+  return (Array.isArray(events) ? events : []).filter((event) => hasValidEventCoordinates(event));
+}
+
+function loadStoredUserLocation() {
+  try {
+    const raw = window.localStorage.getItem(USER_LOCATION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const lat = Number(parsed?.lat);
+    const lng = Number(parsed?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function persistUserLocation(location) {
+  if (!Number.isFinite(location?.lat) || !Number.isFinite(location?.lng)) return;
+  try {
+    window.localStorage.setItem(
+      USER_LOCATION_STORAGE_KEY,
+      JSON.stringify({
+        lat: Number(location.lat),
+        lng: Number(location.lng),
+        timestamp: Date.now()
+      })
+    );
+  } catch (_error) {
+    // Ignore storage errors to keep UX non-blocking.
+  }
+}
+
+function setUserLocation(nextLocation) {
+  if (!Number.isFinite(nextLocation?.lat) || !Number.isFinite(nextLocation?.lng)) return;
+  state.userLocation = {
+    lat: Number(nextLocation.lat),
+    lng: Number(nextLocation.lng)
+  };
+  persistUserLocation(state.userLocation);
+}
+
+function readGeolocationPermissionState() {
+  if (!navigator?.permissions?.query) return Promise.resolve("unsupported");
+  return navigator.permissions
+    .query({ name: "geolocation" })
+    .then((status) => status?.state || "unsupported")
+    .catch(() => "unsupported");
+}
+
+function syncLocationPermissionFromNavigator() {
+  return readGeolocationPermissionState().then((permissionState) => {
+    state.locationPermissionState = permissionState;
+    return permissionState;
+  });
+}
+
 function normalizeRadiusKm(value) {
   const radius = Number(value);
   if (!Number.isFinite(radius)) return DEFAULT_NEARBY_RADIUS_KM;
@@ -3430,35 +3515,62 @@ async function ensureUserLocation() {
   if (hasUserLocation()) return true;
   const nextLocation = await requestUserLocation();
   if (!nextLocation) return false;
-  state.userLocation = nextLocation;
+  setUserLocation(nextLocation);
   state.allEvents = applyDistanceData(state.allEvents);
   return true;
 }
 
 function requestUserLocation() {
-  return new Promise((resolve) => {
-    if (!navigator?.geolocation?.getCurrentPosition) {
-      resolve(null);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = Number(position?.coords?.latitude);
-        const lng = Number(position?.coords?.longitude);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-          resolve(null);
-          return;
-        }
-        resolve({ lat, lng });
-      },
-      () => resolve(null),
-      {
-        enableHighAccuracy: false,
-        timeout: 8000,
-        maximumAge: 300000
+  if (locationRequestInFlightPromise) return locationRequestInFlightPromise;
+  locationRequestInFlightPromise = syncLocationPermissionFromNavigator()
+    .then((permissionState) => {
+      if (permissionState === "denied") return null;
+      if (permissionState === "granted") {
+        // Reuse persisted coordinates instead of triggering a new lookup.
+        return loadStoredUserLocation();
       }
-    );
-  });
+      if (permissionState !== "prompt" && permissionState !== "unsupported") {
+        return null;
+      }
+      if (!navigator?.geolocation?.getCurrentPosition) return null;
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = Number(position?.coords?.latitude);
+            const lng = Number(position?.coords?.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+              resolve(null);
+              return;
+            }
+            resolve({ lat, lng });
+          },
+          () => resolve(null),
+          {
+            enableHighAccuracy: false,
+            timeout: 8000,
+            maximumAge: 300000
+          }
+        );
+      });
+    })
+    .then((location) => {
+      if (location) setUserLocation(location);
+      return location;
+    })
+    .finally(() => {
+      locationRequestInFlightPromise = null;
+    });
+  return locationRequestInFlightPromise;
+}
+
+async function primeUserLocationOnAppLoad() {
+  const storedLocation = loadStoredUserLocation();
+  if (storedLocation) {
+    state.userLocation = storedLocation;
+  }
+
+  // Keep permission state in sync, but avoid requesting geolocation on startup.
+  await syncLocationPermissionFromNavigator();
 }
 
 function enrichDistanceSlots() {
@@ -4130,6 +4242,7 @@ function setViewMode(nextMode, { scroll = false } = {}) {
       if (map) map.invalidateSize();
       computeMapBottomSheetSnapHeights();
       setMapBottomSheetState(state.mapSheet.state, { animate: false });
+      renderMapMarkers();
     }, 220);
     if (scroll && dom.mapSection) dom.mapSection.scrollIntoView({ behavior: "smooth", block: "start" });
   } else if (scroll && dom.listSection) {
@@ -4312,15 +4425,38 @@ function markerPopupHtml(event) {
 }
 
 function renderMapMarkers() {
-  if (!map) return;
+  if (!map || !markersLayer) return;
+  if (!state.eventsLoaded && !state.allEvents.length) return;
+
   markersLayer.clearLayers();
   markersByEventId.clear();
   markerEventsById.clear();
   activeMarkerId = null;
   const bounds = [];
 
-  state.filteredEvents.forEach((event) => {
-    if (event.lat === null || event.lng === null) return;
+  const filteredMappableEvents = getMappableEvents(state.filteredEvents);
+  const allMappableEvents = getMappableEvents(state.allEvents);
+  const markerSource = filteredMappableEvents.length ? filteredMappableEvents : allMappableEvents;
+  console.log("[Marcha Debug] Map marker render:", {
+    mapReady: Boolean(map && markersLayer),
+    eventsLoaded: state.eventsLoaded,
+    filteredEvents: state.filteredEvents.length,
+    filteredMappableEvents: filteredMappableEvents.length,
+    allEvents: state.allEvents.length,
+    allMappableEvents: allMappableEvents.length,
+    markerSource: filteredMappableEvents.length ? "filtered" : "all-fallback"
+  });
+
+  if (!filteredMappableEvents.length && allMappableEvents.length) {
+    console.info("[Marcha Debug] Map marker fallback active (using all events).", {
+      filteredEvents: state.filteredEvents.length,
+      filteredMappableEvents: filteredMappableEvents.length,
+      allEvents: state.allEvents.length,
+      allMappableEvents: allMappableEvents.length
+    });
+  }
+
+  markerSource.forEach((event) => {
     const marker = L.marker([event.lat, event.lng], {
       title: event.name,
       icon: createMarkerIcon(event, false)
@@ -4333,6 +4469,10 @@ function renderMapMarkers() {
     markerEventsById.set(event.id, event);
     bounds.push([event.lat, event.lng]);
   });
+
+  if (!bounds.length && state.eventsLoaded) {
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }
 
   throttledFitMapToBounds(bounds);
 
@@ -4751,6 +4891,10 @@ function bindEvents() {
     logInstallUiState("event:display-mode-change");
     updateInstallUiVisibility();
   });
+  window.addEventListener("pageshow", () => {
+    logInstallUiState("event:pageshow");
+    updateInstallUiVisibility();
+  });
   dom.searchInput.addEventListener("input", () => {
     syncHeroControlsFromSidebar();
     syncMapSheetControlsFromSidebar();
@@ -4871,12 +5015,6 @@ function bindEvents() {
     dom.openSubmitModalHero.addEventListener("click", () => {
       setFormFeedback("");
       openSubmitModal();
-    });
-  }
-  if (dom.heroDiscoverCta) {
-    dom.heroDiscoverCta.addEventListener("click", () => {
-      setViewMode("list", { scroll: true });
-      dom.heroSearchInput?.focus();
     });
   }
   if (dom.heroFeedbackCta) {
@@ -5205,6 +5343,7 @@ async function fetchEventsFromSupabase() {
 
 async function loadEvents() {
   setStatus(t("status_loading"), "loading");
+  state.eventsLoaded = false;
   state.debug.hasError = false;
   state.debug.errorMessage = "";
   state.debug.fallbackReason = t("debug_note_pending");
@@ -5218,6 +5357,7 @@ async function loadEvents() {
     if (!data.length) {
       state.allEvents = [];
       state.moderationEvents = [];
+      state.eventsLoaded = true;
       state.sourceType = "supabase-empty";
       state.debug.fallbackReason = t("debug_note_no_data");
       setStatus(t("status_no_data"), "warning");
@@ -5227,6 +5367,7 @@ async function loadEvents() {
 
     state.moderationEvents = isSessionAdmin(state.adminSession) ? data : [];
     state.allEvents = applyDistanceData(expandRecurringEvents(data.filter(isApprovedEvent)));
+    state.eventsLoaded = true;
     state.sourceType = "supabase";
     state.debug.fallbackReason = t("debug_note_supabase");
     if (state.isAdminMode && isSessionAdmin(state.adminSession)) {
@@ -5239,6 +5380,7 @@ async function loadEvents() {
     console.error("Supabase Fehler:", error);
     state.allEvents = [];
     state.moderationEvents = [];
+    state.eventsLoaded = true;
     state.sourceType = "supabase-error";
     state.debug.hasError = true;
     state.debug.errorMessage = error.message;
@@ -5250,6 +5392,7 @@ async function loadEvents() {
 
 async function startApp() {
   state.favoriteEventIds = loadFavoriteEventIds();
+  suppressInstallUiOnAppLoad();
   registerServiceWorker();
   const query = readQueryParams();
   const requestedLang = resolveLanguage(query.lang);
@@ -5268,7 +5411,7 @@ async function startApp() {
   renderNearbyFilterControls();
   setupInstallBanner();
   setupMobileInstallEntry();
-  state.userLocation = await requestUserLocation();
+  await primeUserLocationOnAppLoad();
   await checkAdminSession();
   await loadEvents();
   updateFilterOptions();
