@@ -1692,6 +1692,8 @@ body.body--modal-open {
   left: 10px;
   right: 10px;
   bottom: 10px;
+  display: flex;
+  flex-direction: column;
   z-index: 550;
   border-radius: 22px 22px 16px 16px;
   border: 1px solid rgba(153, 180, 255, 0.36);
@@ -1908,7 +1910,12 @@ body.body--modal-open {
 }
 
 .map-bottom-sheet__content {
-  padding: 0 0.5rem 0.54rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  padding: 0 0.5rem calc(0.54rem + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling: touch;
 }
 
 .map-bottom-sheet[data-sheet-state="peek"] .event-details {
@@ -1939,13 +1946,13 @@ body.body--modal-open {
 }
 
 .map-bottom-sheet[data-sheet-state="full"] .event-details {
-  max-height: calc(100vh - 180px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .map-bottom-sheet[data-sheet-state="half"] .event-details {
-  max-height: calc(100vh - 260px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .map-bottom-sheet[data-sheet-state="full"] .map-bottom-sheet__top {
