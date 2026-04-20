@@ -2224,6 +2224,14 @@ function isStandaloneMode() {
   return isRunningStandalone();
 }
 
+function applyRuntimeEnvironmentState() {
+  if (!document.body) return;
+  const standalone = isRunningStandalone();
+  const iosDevice = isIosDevice();
+  document.body.classList.toggle("is-standalone-app", standalone);
+  document.body.classList.toggle("is-ios-device", iosDevice);
+}
+
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return Promise.resolve(null);
   if (serviceWorkerRegistrationPromise) return serviceWorkerRegistrationPromise;
@@ -2443,6 +2451,7 @@ function setupMobileInstallEntry() {
 }
 
 function updateInstallUiVisibility() {
+  applyRuntimeEnvironmentState();
   syncInstalledStateFromStandalone();
   logInstallUiState("recompute:start");
 
@@ -5392,6 +5401,7 @@ async function loadEvents() {
 
 async function startApp() {
   state.favoriteEventIds = loadFavoriteEventIds();
+  applyRuntimeEnvironmentState();
   suppressInstallUiOnAppLoad();
   registerServiceWorker();
   const query = readQueryParams();

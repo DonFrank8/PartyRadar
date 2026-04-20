@@ -61,6 +61,7 @@ body {
   color: var(--text);
   font-family: "Inter", sans-serif;
   line-height: 1.45;
+  padding-top: env(safe-area-inset-top);
   background:
     radial-gradient(circle at 12% 0%, rgba(236, 72, 153, 0.12), rgba(236, 72, 153, 0) 34%),
     radial-gradient(circle at 82% 0%, rgba(124, 58, 237, 0.18), rgba(124, 58, 237, 0) 36%),
@@ -122,6 +123,18 @@ body.body--modal-open {
   overflow: hidden;
 }
 
+body.is-standalone-app .hero-first-open__text {
+  display: none;
+}
+
+body.is-standalone-app .hero-first-open {
+  margin-top: 0;
+}
+
+body.is-standalone-app .hero-first-open__actions {
+  margin-top: 0.28rem;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -136,7 +149,7 @@ body.body--modal-open {
 
 .hero {
   position: relative;
-  padding: 1.2rem 1.2rem 2.2rem;
+  padding: calc(1.2rem + env(safe-area-inset-top)) 1.2rem 2.2rem;
   overflow: hidden;
 }
 
@@ -1946,13 +1959,13 @@ body.body--modal-open {
 }
 
 .map-bottom-sheet[data-sheet-state="full"] .event-details {
-  max-height: none;
-  overflow: visible;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .map-bottom-sheet[data-sheet-state="half"] .event-details {
-  max-height: none;
-  overflow: visible;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .map-bottom-sheet[data-sheet-state="full"] .map-bottom-sheet__top {
@@ -2837,7 +2850,7 @@ body.body--modal-open {
 
 @media (max-width: 780px) {
   .hero {
-    padding: 1rem 0.85rem 1.35rem;
+    padding: calc(1rem + env(safe-area-inset-top)) 0.85rem 1.35rem;
   }
 
   .hero__topbar {
@@ -2990,7 +3003,7 @@ body.body--modal-open {
   }
 
   body {
-    padding-bottom: 80px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
   }
 
   body[data-view-mode="map"] .sidebar {
@@ -3004,7 +3017,7 @@ body.body--modal-open {
 
 @media (max-width: 520px) {
   .hero {
-    padding: 0.75rem 0.6rem 1.1rem;
+    padding: calc(0.75rem + env(safe-area-inset-top)) 0.6rem 1.1rem;
   }
 
   .hero__topbar {
@@ -3230,6 +3243,10 @@ body.body--modal-open {
   .map-section,
   #map {
     min-height: 390px;
+  }
+
+  .app-shell {
+    padding-top: max(0.2rem, env(safe-area-inset-top));
   }
 
   .map-sheet-search__row {
