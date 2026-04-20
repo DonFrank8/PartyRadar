@@ -960,6 +960,7 @@ const state = {
   allEvents: [],
   moderationEvents: [],
   filteredEvents: [],
+  eventsLoaded: false,
   userLocation: null,
   selectedEventId: null,
   activeEventId: null,
@@ -3352,6 +3353,18 @@ function hasUserLocation() {
   return Number.isFinite(state.userLocation?.lat) && Number.isFinite(state.userLocation?.lng);
 }
 
+function hasValidEventCoordinates(event) {
+  const lat = Number(event?.lat);
+  const lng = Number(event?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return false;
+  return true;
+}
+
+function getMappableEvents(events) {
+  return (Array.isArray(events) ? events : []).filter((event) => hasValidEventCoordinates(event));
+}
+
 function loadStoredUserLocation() {
   try {
     const raw = window.localStorage.getItem(USER_LOCATION_STORAGE_KEY);
@@ -4229,6 +4242,7 @@ function setViewMode(nextMode, { scroll = false } = {}) {
       if (map) map.invalidateSize();
       computeMapBottomSheetSnapHeights();
       setMapBottomSheetState(state.mapSheet.state, { animate: false });
+      renderMapMarkers();
     }, 220);
     if (scroll && dom.mapSection) dom.mapSection.scrollIntoView({ behavior: "smooth", block: "start" });
   } else if (scroll && dom.listSection) {
@@ -4411,15 +4425,38 @@ function markerPopupHtml(event) {
 }
 
 function renderMapMarkers() {
-  if (!map) return;
+  if (!map || !markersLayer) return;
+  if (!state.eventsLoaded && !state.allEvents.length) return;
+
   markersLayer.clearLayers();
   markersByEventId.clear();
   markerEventsById.clear();
   activeMarkerId = null;
   const bounds = [];
 
-  state.filteredEvents.forEach((event) => {
-    if (event.lat === null || event.lng === null) return;
+  const filteredMappableEvents = getMappableEvents(state.filteredEvents);
+  const allMappableEvents = getMappableEvents(state.allEvents);
+  const markerSource = filteredMappableEvents.length ? filteredMappableEvents : allMappableEvents;
+  console.log("[Marcha Debug] Map marker render:", {
+    mapReady: Boolean(map && markersLayer),
+    eventsLoaded: state.eventsLoaded,
+    filteredEvents: state.filteredEvents.length,
+    filteredMappableEvents: filteredMappableEvents.length,
+    allEvents: state.allEvents.length,
+    allMappableEvents: allMappableEvents.length,
+    markerSource: filteredMappableEvents.length ? "filtered" : "all-fallback"
+  });
+
+  if (!filteredMappableEvents.length && allMappableEvents.length) {
+    console.info("[Marcha Debug] Map marker fallback active (using all events).", {
+      filteredEvents: state.filteredEvents.length,
+      filteredMappableEvents: filteredMappableEvents.length,
+      allEvents: state.allEvents.length,
+      allMappableEvents: allMappableEvents.length
+    });
+  }
+
+  markerSource.forEach((event) => {
     const marker = L.marker([event.lat, event.lng], {
       title: event.name,
       icon: createMarkerIcon(event, false)
@@ -4432,6 +4469,10 @@ function renderMapMarkers() {
     markerEventsById.set(event.id, event);
     bounds.push([event.lat, event.lng]);
   });
+
+  if (!bounds.length && state.eventsLoaded) {
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }
 
   throttledFitMapToBounds(bounds);
 
@@ -5302,6 +5343,7 @@ async function fetchEventsFromSupabase() {
 
 async function loadEvents() {
   setStatus(t("status_loading"), "loading");
+  state.eventsLoaded = false;
   state.debug.hasError = false;
   state.debug.errorMessage = "";
   state.debug.fallbackReason = t("debug_note_pending");
@@ -5315,6 +5357,7 @@ async function loadEvents() {
     if (!data.length) {
       state.allEvents = [];
       state.moderationEvents = [];
+      state.eventsLoaded = true;
       state.sourceType = "supabase-empty";
       state.debug.fallbackReason = t("debug_note_no_data");
       setStatus(t("status_no_data"), "warning");
@@ -5324,6 +5367,7 @@ async function loadEvents() {
 
     state.moderationEvents = isSessionAdmin(state.adminSession) ? data : [];
     state.allEvents = applyDistanceData(expandRecurringEvents(data.filter(isApprovedEvent)));
+    state.eventsLoaded = true;
     state.sourceType = "supabase";
     state.debug.fallbackReason = t("debug_note_supabase");
     if (state.isAdminMode && isSessionAdmin(state.adminSession)) {
@@ -5336,6 +5380,7 @@ async function loadEvents() {
     console.error("Supabase Fehler:", error);
     state.allEvents = [];
     state.moderationEvents = [];
+    state.eventsLoaded = true;
     state.sourceType = "supabase-error";
     state.debug.hasError = true;
     state.debug.errorMessage = error.message;
