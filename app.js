@@ -4976,12 +4976,6 @@ function bindEvents() {
       openSubmitModal();
     });
   }
-  if (dom.heroDiscoverCta) {
-    dom.heroDiscoverCta.addEventListener("click", () => {
-      setViewMode("list", { scroll: true });
-      dom.heroSearchInput?.focus();
-    });
-  }
   if (dom.heroFeedbackCta) {
     dom.heroFeedbackCta.addEventListener("click", () => {
       openBetaFeedback();
