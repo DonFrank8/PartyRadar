@@ -13,7 +13,12 @@ const EVENT_IMAGES_BUCKET = "event-images";
 const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EVENT_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DEFAULT_NAVIGATION_PROVIDER = "google";
-const GOOGLE_PLACES_API_KEY = (window.PARTYRADAR_GOOGLE_PLACES_KEY || "").toString().trim();
+const GOOGLE_PLACES_API_KEY = (
+  window.PARTYRADAR_GOOGLE_PLACES_KEY
+  || window.PARTYRADAR_GOOGLE_MAPS_KEY
+  || document.querySelector('meta[name="partyradar-google-places-key"]')?.getAttribute("content")
+  || ""
+).toString().trim();
 const GOOGLE_PLACES_AUTOCOMPLETE_DEBOUNCE_MS = 380;
 const GOOGLE_PLACES_AUTOCOMPLETE_MIN_CHARS = 3;
 const BETA_FEEDBACK_EMAIL = "beta@marcha.app";
@@ -1647,13 +1652,19 @@ function getTextFromSuggestionText(textValue) {
   return "";
 }
 
+function normalizeGooglePlaceId(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw.startsWith("places/") ? raw.slice("places/".length) : raw;
+}
+
 function buildLocationSuggestions(predictions) {
   return (Array.isArray(predictions) ? predictions : [])
     .map((prediction) => {
       const suggestionText = getTextFromSuggestionText(prediction.text || prediction.structuredFormat?.mainText) ||
         String(prediction.description || "").trim();
       const secondaryText = getTextFromSuggestionText(prediction.structuredFormat?.secondaryText);
-      const placeId = String(prediction.placeId || "").trim();
+      const placeId = normalizeGooglePlaceId(prediction.placeId || prediction.place);
       if (!suggestionText || !placeId) return null;
       return {
         placeId,
@@ -1708,7 +1719,9 @@ async function fetchGooglePlacesAutocompletePredictions(searchInput) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY
+      "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+      "X-Goog-FieldMask":
+        "suggestions.placePrediction.placeId,suggestions.placePrediction.place,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat"
     },
     body: JSON.stringify({
       input: searchInput,
@@ -1742,7 +1755,9 @@ function resolveCityFromAddressComponents(addressComponents) {
 
 async function fetchGooglePlaceDetails(placeId) {
   if (!GOOGLE_PLACES_API_KEY) throw new Error("Google Places API key missing");
-  const endpoint = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`;
+  const normalizedPlaceId = normalizeGooglePlaceId(placeId);
+  if (!normalizedPlaceId) throw new Error("Google place id missing");
+  const endpoint = `https://places.googleapis.com/v1/places/${encodeURIComponent(normalizedPlaceId)}`;
   const sessionToken = ensureLocationSearchToken();
   const response = await fetch(endpoint, {
     headers: {
@@ -1763,7 +1778,7 @@ async function fetchGooglePlaceDetails(placeId) {
   }
   const addressComponents = place?.addressComponents || [];
   return {
-    place_id: String(place?.id || placeId).trim(),
+    place_id: normalizeGooglePlaceId(place?.id || normalizedPlaceId),
     location_name: String(place?.displayName?.text || "").trim(),
     formatted_address: String(place?.formattedAddress || "").trim(),
     city: resolveCityFromAddressComponents(addressComponents),
@@ -1833,6 +1848,9 @@ function setupEventLocationAutocomplete() {
     || !dom.formLocationSuggestionList
     || !GOOGLE_PLACES_API_KEY
   ) {
+    if (!GOOGLE_PLACES_API_KEY) {
+      console.warn("[Marcha Debug] Google Places autocomplete disabled: missing API key (window.PARTYRADAR_GOOGLE_PLACES_KEY).");
+    }
     locationAutocompleteState.enabled = false;
     hideLocationSuggestionList();
     return;
