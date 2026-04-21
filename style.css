@@ -1736,7 +1736,7 @@ body.is-standalone-app .hero-first-open__actions {
 }
 
 .map-bottom-sheet[data-sheet-state="half"] {
-  max-height: min(48vh, 420px);
+  max-height: min(40vh, 340px);
 }
 
 .map-bottom-sheet[data-sheet-state="full"] {
@@ -2986,6 +2986,10 @@ body.is-standalone-app .hero-first-open__actions {
     bottom: 8px;
   }
 
+  .map-bottom-sheet[data-sheet-state="half"] {
+    max-height: min(36vh, 290px);
+  }
+
   .map-search-area-cta {
     bottom: 172px;
   }
@@ -3136,6 +3140,10 @@ body.is-standalone-app .hero-first-open__actions {
     left: 6px;
     right: 6px;
     bottom: 6px;
+  }
+
+  .map-bottom-sheet[data-sheet-state="half"] {
+    max-height: min(34vh, 250px);
   }
 
   .map-search-area-cta {
