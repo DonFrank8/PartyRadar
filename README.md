@@ -49,6 +49,26 @@ Optional runtime config (set in `index.html` before loading `app.js`):
 
 If `mapbox` is selected but no token is configured, geocoding falls back gracefully (events are still stored as pending).
 
+## Google Places Autocomplete (event form only)
+
+Event location autocomplete uses the public runtime key exposed as:
+
+- `window.VITE_GOOGLE_MAPS_API_KEY`
+
+This mirrors the environment variable name used by Vite deployments:
+
+- `VITE_GOOGLE_MAPS_API_KEY`
+
+Configure it before `app.js` is loaded (for example via your hosting template injection):
+
+```html
+<script>
+  window.VITE_GOOGLE_MAPS_API_KEY = "YOUR_PUBLIC_GOOGLE_MAPS_KEY";
+</script>
+```
+
+The integration is scoped to event submission/editing forms only and is not used for global browsing search.
+
 ## Admin Dashboard
 
 A separate moderation dashboard is now available at:
