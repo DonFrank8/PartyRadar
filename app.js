@@ -14,8 +14,11 @@ const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EVENT_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DEFAULT_NAVIGATION_PROVIDER = "google";
 const GOOGLE_PLACES_API_KEY = (
-  window.PARTYRADAR_GOOGLE_PLACES_KEY
+  window.VITE_GOOGLE_MAPS_API_KEY
+  || window.__ENV__?.VITE_GOOGLE_MAPS_API_KEY
+  || window.PARTYRADAR_GOOGLE_PLACES_KEY
   || window.PARTYRADAR_GOOGLE_MAPS_KEY
+  || document.querySelector('meta[name="vite-google-maps-api-key"]')?.getAttribute("content")
   || document.querySelector('meta[name="partyradar-google-places-key"]')?.getAttribute("content")
   || ""
 ).toString().trim();
@@ -1150,6 +1153,7 @@ const locationAutocompleteState = {
   sessionToken: "",
   selectedPlace: null,
   selectedPredictionId: "",
+  lastSearchText: "",
   searchCounter: 0,
   activeRequestCounter: 0
 };
@@ -1535,9 +1539,14 @@ function normalizeEvent(event, index) {
     id: String(event.id ?? `event-${index}`),
     name: event.name || event.title || "Untitled Event",
     location_name: event.location_name || event.location || "Unknown venue",
+    place_id: String(event.place_id || "").trim(),
+    formatted_address: String(event.formatted_address || "").trim(),
+    street: String(event.street || event.address || "").trim(),
     address: event.address || event.street || "",
     postal_code,
     city: event.city || event.location_city || "",
+    province: String(event.province || "").trim(),
+    region: String(event.region || "").trim(),
     country: event.country || event.country_name || "",
     event_date: normalizedEventDate,
     event_time: event.event_time || event.time || "",
@@ -1598,6 +1607,9 @@ function readFormPayload() {
     contact_email: dom.formContactEmail.value.trim(),
     description: dom.formDescription.value.trim(),
     image_url: null,
+    street: locationAutocompleteState.selectedPlace?.street || (dom.formAddress?.value.trim() || ""),
+    province: locationAutocompleteState.selectedPlace?.province || "",
+    region: locationAutocompleteState.selectedPlace?.region || "",
     place_id: locationAutocompleteState.selectedPlace?.place_id || null,
     formatted_address: locationAutocompleteState.selectedPlace?.formatted_address || null,
     lat: locationAutocompleteState.selectedPlace?.lat || null,
@@ -1617,6 +1629,7 @@ function ensureLocationSearchToken() {
 function resetLocationSearchToken() {
   locationAutocompleteState.sessionToken = "";
   locationAutocompleteState.selectedPredictionId = "";
+  locationAutocompleteState.lastSearchText = "";
 }
 
 function clearLocationSuggestionList() {
@@ -1753,6 +1766,28 @@ function resolveCityFromAddressComponents(addressComponents) {
   );
 }
 
+function resolveProvinceFromAddressComponents(addressComponents) {
+  return (
+    extractAddressPart(addressComponents, "administrative_area_level_2")
+    || extractAddressPart(addressComponents, "administrative_area_level_1")
+  );
+}
+
+function resolveRegionFromAddressComponents(addressComponents) {
+  return extractAddressPart(addressComponents, "administrative_area_level_1");
+}
+
+function resolveStreetFromAddressComponents(addressComponents) {
+  const route = extractAddressPart(addressComponents, "route");
+  const streetNumber = extractAddressPart(addressComponents, "street_number");
+  const premise = extractAddressPart(addressComponents, "premise");
+  const subpremise = extractAddressPart(addressComponents, "subpremise");
+  const street = [route, streetNumber].filter(Boolean).join(" ").trim();
+  if (street) return street;
+  const venueStreet = [premise, subpremise].filter(Boolean).join(" ").trim();
+  return venueStreet;
+}
+
 async function fetchGooglePlaceDetails(placeId) {
   if (!GOOGLE_PLACES_API_KEY) throw new Error("Google Places API key missing");
   const normalizedPlaceId = normalizeGooglePlaceId(placeId);
@@ -1773,19 +1808,20 @@ async function fetchGooglePlaceDetails(placeId) {
   const place = await response.json();
   const lat = Number(place?.location?.latitude);
   const lng = Number(place?.location?.longitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    throw new Error("Place details missing coordinates");
-  }
   const addressComponents = place?.addressComponents || [];
+  const street = resolveStreetFromAddressComponents(addressComponents);
   return {
     place_id: normalizeGooglePlaceId(place?.id || normalizedPlaceId),
     location_name: String(place?.displayName?.text || "").trim(),
     formatted_address: String(place?.formattedAddress || "").trim(),
+    street,
     city: resolveCityFromAddressComponents(addressComponents),
     postal_code: extractAddressPart(addressComponents, "postal_code"),
+    province: resolveProvinceFromAddressComponents(addressComponents),
+    region: resolveRegionFromAddressComponents(addressComponents),
     country: extractAddressPart(addressComponents, "country"),
-    lat,
-    lng
+    lat: Number.isFinite(lat) ? lat : null,
+    lng: Number.isFinite(lng) ? lng : null
   };
 }
 
@@ -1793,8 +1829,8 @@ function applySelectedPlaceToForm(placeData) {
   if (dom.formLocationName && placeData.location_name) {
     dom.formLocationName.value = placeData.location_name;
   }
-  if (dom.formAddress && placeData.formatted_address) {
-    dom.formAddress.value = placeData.formatted_address;
+  if (dom.formAddress && (placeData.street || placeData.formatted_address)) {
+    dom.formAddress.value = placeData.street || placeData.formatted_address;
   }
   if (dom.formCity && placeData.city) {
     dom.formCity.value = placeData.city;
@@ -1825,8 +1861,14 @@ const runLocationAutocompleteSearch = debounce(async () => {
   if (!locationAutocompleteState.enabled) return;
   const searchText = buildLocationInputSearchText();
   if (searchText.length < GOOGLE_PLACES_AUTOCOMPLETE_MIN_CHARS) {
+    resetLocationSearchToken();
     hideLocationSuggestionList();
     return;
+  }
+
+  if (!locationAutocompleteState.lastSearchText) {
+    // Start a fresh billing/session context for each new user search.
+    resetLocationSearchToken();
   }
 
   const requestId = ++locationAutocompleteState.searchCounter;
@@ -1834,6 +1876,7 @@ const runLocationAutocompleteSearch = debounce(async () => {
   try {
     const suggestions = await fetchGooglePlacesAutocompletePredictions(searchText);
     if (requestId !== locationAutocompleteState.activeRequestCounter) return;
+    locationAutocompleteState.lastSearchText = searchText;
     renderLocationSuggestions(suggestions);
   } catch (error) {
     if (requestId !== locationAutocompleteState.activeRequestCounter) return;
@@ -1849,7 +1892,7 @@ function setupEventLocationAutocomplete() {
     || !GOOGLE_PLACES_API_KEY
   ) {
     if (!GOOGLE_PLACES_API_KEY) {
-      console.warn("[Marcha Debug] Google Places autocomplete disabled: missing API key (window.PARTYRADAR_GOOGLE_PLACES_KEY).");
+      console.warn("[Marcha Debug] Google Places autocomplete disabled: missing API key (VITE_GOOGLE_MAPS_API_KEY).");
     }
     locationAutocompleteState.enabled = false;
     hideLocationSuggestionList();
@@ -2058,9 +2101,12 @@ function buildInsertPayload(payload) {
   return {
     name: payload.name,
     location_name: payload.location_name,
+    street: payload.street || payload.address || null,
     address: payload.address || null,
     postal_code: payload.postal_code || null,
     city: payload.city,
+    province: payload.province || null,
+    region: payload.region || null,
     country: payload.country || null,
     event_date: eventDate,
     event_time: payload.event_time || null,
@@ -2459,6 +2505,9 @@ async function insertEventWithSchemaFallback(client, payload) {
   const fallbackPayload = { ...payload };
   const removedColumns = new Set();
   const schemaFallbackPriority = [
+    "street",
+    "province",
+    "region",
     "formatted_address",
     "place_id",
     "address",
@@ -3042,7 +3091,7 @@ function getRecurringText(event, lang = state.lang) {
 }
 
 function buildNavigationAddressQuery(event) {
-  const strictAddressQuery = [event.address, event.city, event.country]
+  const strictAddressQuery = [event.formatted_address, event.address, event.city, event.country]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(", ");
@@ -3078,7 +3127,7 @@ function buildNavigationUrl(event) {
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${event.lat},${event.lng}`)}`;
   }
 
-  const addressQuery = [event?.address, event?.city]
+  const addressQuery = [event?.formatted_address, event?.address, event?.city]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(" ");

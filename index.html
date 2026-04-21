@@ -25,7 +25,10 @@
       var cacheBuster = String(Date.now());
       window.PARTYRADAR_BUILD = "live";
       window.PARTYRADAR_CACHE_BUSTER = cacheBuster;
-      window.PARTYRADAR_GOOGLE_PLACES_KEY = window.PARTYRADAR_GOOGLE_PLACES_KEY || "";
+      window.PARTYRADAR_GOOGLE_PLACES_KEY =
+        window.PARTYRADAR_GOOGLE_PLACES_KEY
+        || window.VITE_GOOGLE_MAPS_API_KEY
+        || "";
       var stylesheet = document.createElement("link");
       stylesheet.rel = "stylesheet";
       stylesheet.href = "./style.css?v=" + encodeURIComponent(cacheBuster);
@@ -566,6 +569,10 @@
   <script>
     window.PARTYRADAR_VERSION = "v2.2.0";
     window.PARTYRADAR_CACHE_BUSTER = Date.now();
+    window.PARTYRADAR_GOOGLE_PLACES_KEY =
+      window.PARTYRADAR_GOOGLE_PLACES_KEY
+      || window.VITE_GOOGLE_MAPS_API_KEY
+      || "";
     (function () {
       var script = document.createElement("script");
       script.src = "./app.js?v=" + encodeURIComponent(window.PARTYRADAR_CACHE_BUSTER);
