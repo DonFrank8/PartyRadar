@@ -1865,6 +1865,44 @@ function resolveStreetFromAddressComponents(addressComponents) {
   return venueStreet;
 }
 
+function splitFormattedAddressParts(formattedAddress) {
+  return String(formattedAddress || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function parsePostalCodeAndCityFromFormattedAddress(formattedAddress) {
+  const parts = splitFormattedAddressParts(formattedAddress);
+  if (!parts.length) return { postal_code: "", city: "" };
+  const candidates = [...parts].reverse();
+  const cityPart = candidates.find((part) => /\d/.test(part));
+  if (!cityPart) {
+    return { postal_code: "", city: parts[parts.length - 2] || "" };
+  }
+  const postalMatch = cityPart.match(/\b\d{4,6}\b/);
+  const postal_code = postalMatch ? postalMatch[0] : "";
+  const city = cityPart
+    .replace(postal_code, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return {
+    postal_code,
+    city: city || parts[parts.length - 2] || ""
+  };
+}
+
+function resolveFallbackCountryFromFormattedAddress(formattedAddress) {
+  const parts = splitFormattedAddressParts(formattedAddress);
+  if (!parts.length) return "";
+  return parts[parts.length - 1] || "";
+}
+
+function resolveFallbackCityFromFormattedAddress(formattedAddress) {
+  const parsed = parsePostalCodeAndCityFromFormattedAddress(formattedAddress);
+  return parsed.city || "";
+}
+
 async function fetchGooglePlaceDetails(placeId) {
   const apiKey = getGooglePlacesApiKey();
   if (!apiKey) throw new Error("Google Places API key missing");
@@ -1888,16 +1926,20 @@ async function fetchGooglePlaceDetails(placeId) {
   const lng = Number(place?.location?.longitude);
   const addressComponents = place?.addressComponents || [];
   const street = resolveStreetFromAddressComponents(addressComponents);
+  const formattedAddress = String(place?.formattedAddress || "").trim();
+  const fallbackPostalCity = parsePostalCodeAndCityFromFormattedAddress(formattedAddress);
+  const cityFromComponents = resolveCityFromAddressComponents(addressComponents);
+  const countryFromComponents = extractAddressPart(addressComponents, "country");
   return {
     place_id: normalizeGooglePlaceId(place?.id || normalizedPlaceId),
     location_name: String(place?.displayName?.text || "").trim(),
-    formatted_address: String(place?.formattedAddress || "").trim(),
+    formatted_address: formattedAddress,
     street,
-    city: resolveCityFromAddressComponents(addressComponents),
-    postal_code: extractAddressPart(addressComponents, "postal_code"),
+    city: cityFromComponents || resolveFallbackCityFromFormattedAddress(formattedAddress),
+    postal_code: extractAddressPart(addressComponents, "postal_code") || fallbackPostalCity.postal_code,
     province: resolveProvinceFromAddressComponents(addressComponents),
     region: resolveRegionFromAddressComponents(addressComponents),
-    country: extractAddressPart(addressComponents, "country"),
+    country: countryFromComponents || resolveFallbackCountryFromFormattedAddress(formattedAddress),
     lat: Number.isFinite(lat) ? lat : null,
     lng: Number.isFinite(lng) ? lng : null
   };
