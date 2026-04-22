@@ -1907,13 +1907,25 @@ function applySelectedPlaceToForm(placeData) {
 async function handleLocationSuggestionSelection(placeId) {
   if (!placeId) return;
   try {
+    console.log("[Marcha Debug] Selecting placeId:", placeId);
     const placeData = await fetchGooglePlaceDetails(placeId);
+    console.log("[Marcha Debug] Place details payload:", placeData);
     applySelectedPlaceToForm(placeData);
     hideLocationSuggestionList();
     resetLocationSearchToken();
+    setFormFeedback("", "info");
   } catch (error) {
     console.warn("[Marcha Debug] Place details fetch failed:", error);
-    setFormFeedback(t("form_error_geocoding_failed"), "error");
+    const detailMessage = String(error?.message || "");
+    if (detailMessage.includes("HTTP 403")) {
+      renderLocationAutocompleteStatus(
+        "Google Place details blocked for this domain. Please verify website restrictions.",
+        "error"
+      );
+      setFormFeedback("Google Place details blocked for this domain.", "error");
+    } else {
+      setFormFeedback(t("form_error_geocoding_failed"), "error");
+    }
   } finally {
     locationAutocompleteState.isPointerDownOnSuggestions = false;
   }
@@ -1996,6 +2008,7 @@ function setupEventLocationAutocomplete() {
   });
 
   dom.formLocationSuggestionList.addEventListener("click", (event) => {
+    event.stopPropagation();
     const target = event.target instanceof Element ? event.target : null;
     const option = target?.closest(".location-autocomplete__item");
     if (!option) return;
@@ -2005,6 +2018,17 @@ function setupEventLocationAutocomplete() {
     handleLocationSuggestionSelection(placeId);
   });
   dom.formLocationSuggestionList.addEventListener("mousedown", (event) => {
+    event.stopPropagation();
+    const target = event.target instanceof Element ? event.target : null;
+    const option = target?.closest(".location-autocomplete__item");
+    if (!option) return;
+    const placeId = String(option.dataset.placeId || "").trim();
+    if (!placeId) return;
+    event.preventDefault();
+    handleLocationSuggestionSelection(placeId);
+  });
+  dom.formLocationSuggestionList.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
     const target = event.target instanceof Element ? event.target : null;
     const option = target?.closest(".location-autocomplete__item");
     if (!option) return;
