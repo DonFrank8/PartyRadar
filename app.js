@@ -1700,6 +1700,17 @@ function buildLocationSuggestions(predictions) {
     .filter(Boolean);
 }
 
+async function selectLocationAutocompleteOption(placeId, pointerEvent = null) {
+  if (!placeId) return;
+  if (pointerEvent) {
+    pointerEvent.preventDefault();
+    pointerEvent.stopPropagation();
+  }
+  locationAutocompleteState.isPointerDownOnSuggestions = true;
+  renderLocationAutocompleteStatus("Loading location details...");
+  await handleLocationSuggestionSelection(placeId);
+}
+
 function renderLocationSuggestions(items) {
   if (!dom.formLocationSuggestionList) return;
   dom.formLocationSuggestionList.innerHTML = "";
@@ -1728,6 +1739,9 @@ function renderLocationSuggestions(items) {
       address.textContent = item.secondaryText;
       button.append(address);
     }
+    button.addEventListener("pointerdown", (event) => {
+      selectLocationAutocompleteOption(item.placeId, event);
+    });
     fragment.append(button);
   });
   dom.formLocationSuggestionList.append(fragment);
@@ -2008,34 +2022,12 @@ function setupEventLocationAutocomplete() {
   });
 
   dom.formLocationSuggestionList.addEventListener("click", (event) => {
-    event.stopPropagation();
     const target = event.target instanceof Element ? event.target : null;
     const option = target?.closest(".location-autocomplete__item");
     if (!option) return;
     const placeId = String(option.dataset.placeId || "").trim();
     if (!placeId) return;
-    event.preventDefault();
-    handleLocationSuggestionSelection(placeId);
-  });
-  dom.formLocationSuggestionList.addEventListener("mousedown", (event) => {
-    event.stopPropagation();
-    const target = event.target instanceof Element ? event.target : null;
-    const option = target?.closest(".location-autocomplete__item");
-    if (!option) return;
-    const placeId = String(option.dataset.placeId || "").trim();
-    if (!placeId) return;
-    event.preventDefault();
-    handleLocationSuggestionSelection(placeId);
-  });
-  dom.formLocationSuggestionList.addEventListener("pointerdown", (event) => {
-    event.stopPropagation();
-    const target = event.target instanceof Element ? event.target : null;
-    const option = target?.closest(".location-autocomplete__item");
-    if (!option) return;
-    const placeId = String(option.dataset.placeId || "").trim();
-    if (!placeId) return;
-    event.preventDefault();
-    handleLocationSuggestionSelection(placeId);
+    selectLocationAutocompleteOption(placeId, event);
   });
   dom.formLocationSuggestionList.addEventListener("pointerdown", () => {
     locationAutocompleteState.isPointerDownOnSuggestions = true;
