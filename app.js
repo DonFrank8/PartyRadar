@@ -13,7 +13,7 @@ const EVENT_IMAGES_BUCKET = "event-images";
 const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EVENT_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DEFAULT_NAVIGATION_PROVIDER = "google";
-const GOOGLE_PLACES_AUTOCOMPLETE_DEBOUNCE_MS = 380;
+const GOOGLE_PLACES_AUTOCOMPLETE_DEBOUNCE_MS = 220;
 const GOOGLE_PLACES_AUTOCOMPLETE_MIN_CHARS = 3;
 const BETA_FEEDBACK_EMAIL = "beta@marcha.app";
 const FAVORITES_STORAGE_KEY = "vibeon_event_favorites";
@@ -1146,6 +1146,7 @@ const locationAutocompleteState = {
   selectedPlace: null,
   selectedPredictionId: "",
   lastSearchText: "",
+  isPointerDownOnSuggestions: false,
   searchCounter: 0,
   activeRequestCounter: 0
 };
@@ -1640,6 +1641,7 @@ function clearLocationSuggestionList() {
 }
 
 function hideLocationSuggestionList() {
+  if (locationAutocompleteState.isPointerDownOnSuggestions) return;
   clearLocationSuggestionList();
 }
 
@@ -1912,6 +1914,8 @@ async function handleLocationSuggestionSelection(placeId) {
   } catch (error) {
     console.warn("[Marcha Debug] Place details fetch failed:", error);
     setFormFeedback(t("form_error_geocoding_failed"), "error");
+  } finally {
+    locationAutocompleteState.isPointerDownOnSuggestions = false;
   }
 }
 
@@ -1983,6 +1987,7 @@ function setupEventLocationAutocomplete() {
     });
   dom.formLocationName.addEventListener("blur", () => {
     window.setTimeout(() => {
+      if (locationAutocompleteState.isPointerDownOnSuggestions) return;
       const activeElement = document.activeElement;
       if (!(activeElement instanceof Element) || !activeElement.closest(".location-suggestions")) {
         hideLocationSuggestionList();
@@ -1996,7 +2001,19 @@ function setupEventLocationAutocomplete() {
     if (!option) return;
     const placeId = String(option.dataset.placeId || "").trim();
     if (!placeId) return;
+    event.preventDefault();
     handleLocationSuggestionSelection(placeId);
+  });
+  dom.formLocationSuggestionList.addEventListener("pointerdown", () => {
+    locationAutocompleteState.isPointerDownOnSuggestions = true;
+  });
+  dom.formLocationSuggestionList.addEventListener("pointerup", () => {
+    window.setTimeout(() => {
+      locationAutocompleteState.isPointerDownOnSuggestions = false;
+    }, 0);
+  });
+  dom.formLocationSuggestionList.addEventListener("pointercancel", () => {
+    locationAutocompleteState.isPointerDownOnSuggestions = false;
   });
 
   document.addEventListener("click", (event) => {
