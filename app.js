@@ -1948,20 +1948,18 @@ const runLocationAutocompleteSearch = debounce(async () => {
 }, GOOGLE_PLACES_AUTOCOMPLETE_DEBOUNCE_MS);
 
 function setupEventLocationAutocomplete() {
-  const apiKey = getGooglePlacesApiKey();
   if (
     !dom.formLocationName
     || !dom.formLocationSuggestionList
-    || !apiKey
   ) {
-    if (!apiKey) {
-      console.warn("[Marcha Debug] Google Places autocomplete disabled: missing API key (VITE_GOOGLE_MAPS_API_KEY).");
-      renderLocationAutocompleteStatus("Google Places key is missing. Suggestions are unavailable.", "error");
-      setFormFeedback("Google Places key is missing. Suggestions are currently unavailable.", "error");
-    }
     locationAutocompleteState.enabled = false;
     hideLocationSuggestionList();
     return;
+  }
+  const apiKey = getGooglePlacesApiKey();
+  if (!apiKey) {
+    console.warn("[Marcha Debug] Google Places key not present at setup; waiting for runtime key.");
+    renderLocationAutocompleteStatus("Waiting for Google Places key...", "info");
   }
   locationAutocompleteState.enabled = true;
   dom.formLocationName.setAttribute("aria-expanded", "false");
