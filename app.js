@@ -1739,7 +1739,11 @@ function renderLocationSuggestions(items) {
       address.textContent = item.secondaryText;
       button.append(address);
     }
+    button.style.pointerEvents = "auto";
     button.addEventListener("pointerdown", (event) => {
+      selectLocationAutocompleteOption(item.placeId, event);
+    });
+    button.addEventListener("click", (event) => {
       selectLocationAutocompleteOption(item.placeId, event);
     });
     fragment.append(button);
@@ -2019,6 +2023,18 @@ function setupEventLocationAutocomplete() {
         hideLocationSuggestionList();
       }
     }, 100);
+  });
+  dom.formLocationName.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== "Tab") return;
+    if (!dom.formLocationSuggestionList || dom.formLocationSuggestionList.hidden) return;
+    const firstOption = dom.formLocationSuggestionList.querySelector(".location-autocomplete__item");
+    if (!(firstOption instanceof HTMLButtonElement)) return;
+    const placeId = String(firstOption.dataset.placeId || "").trim();
+    if (!placeId) return;
+    event.preventDefault();
+    selectLocationAutocompleteOption(placeId).then(() => {
+      dom.formAddress?.focus();
+    });
   });
 
   dom.formLocationSuggestionList.addEventListener("click", (event) => {
