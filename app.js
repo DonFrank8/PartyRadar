@@ -4179,6 +4179,107 @@ function getMappableEvents(events) {
   return (Array.isArray(events) ? events : []).filter((event) => hasValidEventCoordinates(event));
 }
 
+const mapCoordinateEnrichmentState = {
+  attemptedIds: new Set(),
+  inFlightById: new Map()
+};
+
+function eventGeocodingQuery(event) {
+  const direct = String(event?.formatted_address || event?.geocoding_query || "").trim();
+  if (direct) return direct;
+  return [
+    event?.address,
+    event?.postal_code,
+    event?.city,
+    event?.country,
+    event?.location_name
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function patchEventCoordinatesById(eventId, coordinates) {
+  const normalizedId = String(eventId || "").trim();
+  if (!normalizedId) return false;
+  const lat = Number(coordinates?.lat);
+  const lng = Number(coordinates?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  let updated = false;
+  state.allEvents.forEach((event) => {
+    if (String(event?.id || "") !== normalizedId) return;
+    event.lat = lat;
+    event.lng = lng;
+    updated = true;
+  });
+  if (updated) {
+    state.allEvents = applyDistanceData(state.allEvents);
+  }
+  return updated;
+}
+
+async function geocodeMissingMapCoordinates(event) {
+  if (!event || hasValidEventCoordinates(event)) return null;
+  const eventId = String(event.id || "").trim();
+  if (!eventId) return null;
+  if (mapCoordinateEnrichmentState.inFlightById.has(eventId)) {
+    return mapCoordinateEnrichmentState.inFlightById.get(eventId);
+  }
+
+  const query = eventGeocodingQuery(event);
+  if (!query) {
+    mapCoordinateEnrichmentState.attemptedIds.add(eventId);
+    return null;
+  }
+
+  const provider = GEOCODING_PROVIDERS[GEOCODING_PROVIDER] || geocodeAddressWithNominatim;
+  const inFlightPromise = (async () => {
+    try {
+      const coordinates = await geocodeWithRetry(provider, query);
+      if (!coordinates) return null;
+      const lat = Number(coordinates.lat);
+      const lng = Number(coordinates.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      return {
+        lat,
+        lng
+      };
+    } catch (_error) {
+      return null;
+    } finally {
+      mapCoordinateEnrichmentState.attemptedIds.add(eventId);
+      mapCoordinateEnrichmentState.inFlightById.delete(eventId);
+    }
+  })();
+
+  mapCoordinateEnrichmentState.inFlightById.set(eventId, inFlightPromise);
+  return inFlightPromise;
+}
+
+function enqueueMapCoordinateEnrichment(events) {
+  const candidates = (Array.isArray(events) ? events : [])
+    .filter((event) => {
+      const eventId = String(event?.id || "").trim();
+      if (!eventId) return false;
+      if (hasValidEventCoordinates(event)) return false;
+      if (mapCoordinateEnrichmentState.attemptedIds.has(eventId)) return false;
+      if (mapCoordinateEnrichmentState.inFlightById.has(eventId)) return false;
+      return Boolean(eventGeocodingQuery(event));
+    })
+    .slice(0, 6);
+
+  if (!candidates.length) return;
+
+  candidates.forEach((event) => {
+    geocodeMissingMapCoordinates(event).then((coordinates) => {
+      if (!coordinates) return;
+      const updated = patchEventCoordinatesById(event.id, coordinates);
+      if (!updated) return;
+      applyFilters();
+    });
+  });
+}
+
 function loadStoredUserLocation() {
   try {
     const raw = window.localStorage.getItem(USER_LOCATION_STORAGE_KEY);
@@ -4463,6 +4564,7 @@ function updateMapSheetSortControls() {
 
 function applyFilters() {
   const filters = getActiveFilters();
+  enqueueMapCoordinateEnrichment(state.allEvents);
   const filtered = state.allEvents.filter((event) => {
     const haystack = eventSearchText(event);
     const eventDate = parseIsoDate(event.event_date || "");
@@ -5263,6 +5365,9 @@ function renderMapMarkers() {
   activeMarkerId = null;
   const bounds = [];
 
+  const enrichmentCandidates = state.filteredEvents.length ? state.filteredEvents : state.allEvents;
+  enqueueMapCoordinateEnrichment(enrichmentCandidates);
+
   const filteredMappableEvents = getMappableEvents(state.filteredEvents);
   const allMappableEvents = getMappableEvents(state.allEvents);
   const markerSource = filteredMappableEvents.length ? filteredMappableEvents : allMappableEvents;
@@ -5348,6 +5453,15 @@ function renderEventDetails(event) {
   const timeText = event.event_time || t("details_time_fallback");
   const genreText = event.genre || "-";
   const priceText = formatPrice(event.price_text);
+  const topGenreBadge = genreText && genreText !== "-"
+    ? `<span class="event-details__badge event-details__badge--genre">${genreText}</span>`
+    : "";
+  const topPriceBadge = priceText
+    ? `<span class="event-details__badge">${priceText}</span>`
+    : "";
+  const topBadgesMarkup = (topGenreBadge || topPriceBadge)
+    ? `<div class="event-details__badges">${topGenreBadge}${topPriceBadge}</div>`
+    : "";
   const locationLead = locationName || event.city || fallbackLocationLine || "-";
   const addressOnlyLine = [event.address, event.postal_code]
     .map((value) => String(value || "").trim())
@@ -5415,6 +5529,7 @@ function renderEventDetails(event) {
             <p class="event-details__location-lead">📍 ${locationLead}</p>
             ${navigationCtaInline}
           </div>
+          ${topBadgesMarkup}
           <p class="event-details__venue-detail">${addressDetail}</p>
           ${cityCountryMarkup}
           ${locationExtraMarkup}
