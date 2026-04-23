@@ -28,7 +28,7 @@ const MOBILE_INSTALL_CTA_DISMISS_DAYS = 21;
 const USER_LOCATION_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const INSTALL_BANNER_SHOW_DELAY_MS = 2800;
 const ENABLE_LEGACY_INSTALL_BANNER = false;
-const INSTALL_UI_DEBUG = true;
+const INSTALL_UI_DEBUG = false;
 
 window.PARTYRADAR_CACHE_BUSTER = APP_BUILD_VERSION;
 
@@ -593,7 +593,7 @@ const I18N = {
       "Permission denied by database security (RLS). Please run/update supabase-rls.sql to allow pending event submissions.",
     form_error_geocoding_failed: "Address could not be geocoded. Please check your input.",
     form_error_places_details_cors:
-      "Google Places detail request was blocked by browser/CORS. Please verify domain/referrer restrictions or use a Places proxy.",
+      "Google Places detail request was blocked by browser/CORS. Please verify domain/referrer restrictions.",
     form_error_image_required: "Please select a main image.",
     form_error_image_type: "Please upload a valid image (JPG, PNG, or WebP).",
     form_error_image_size: "The image is too large. Maximum is 5 MB.",
@@ -824,7 +824,7 @@ const I18N = {
       "Permiso denegado por la seguridad de base de datos (RLS). Ejecuta/actualiza supabase-rls.sql para permitir envíos en estado pending.",
     form_error_geocoding_failed: "No se pudo geocodificar la dirección. Revisa los datos.",
     form_error_places_details_cors:
-      "La consulta de detalles de Google Places fue bloqueada por el navegador/CORS. Verifica restricciones de dominio/referer o usa un proxy de Places.",
+      "La consulta de detalles de Google Places fue bloqueada por el navegador/CORS. Verifica restricciones de dominio/referer.",
     form_error_image_required: "Selecciona una imagen principal.",
     form_error_image_type: "Sube una imagen válida (JPG, PNG o WebP).",
     form_error_image_size: "La imagen es demasiado grande. Máximo 5 MB.",
@@ -1154,6 +1154,7 @@ const locationAutocompleteState = {
   lastSearchText: "",
   isPointerDownOnSuggestions: false,
   suppressNextInputSearch: false,
+  detailsFetchUnavailable: false,
   suggestionsByPlaceId: new Map(),
   searchCounter: 0,
   activeRequestCounter: 0
@@ -1895,7 +1896,7 @@ function parsePostalCodeAndCityFromFormattedAddress(formattedAddress) {
   if (!cityPart) {
     return { postal_code: "", city: parts[parts.length - 2] || "" };
   }
-  const postalMatch = cityPart.match(/\b\d{4,6}\b/);
+  const postalMatch = cityPart.match(/\b(?:\d{4,6}|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i);
   const postal_code = postalMatch ? postalMatch[0] : "";
   const city = cityPart
     .replace(postal_code, "")
@@ -1918,10 +1919,48 @@ function resolveFallbackCityFromFormattedAddress(formattedAddress) {
   return parsed.city || "";
 }
 
+function normalizeCountryName(countryValue) {
+  const raw = String(countryValue || "").trim();
+  if (!raw) return "";
+  const aliases = {
+    espana: "Spain",
+    "españa": "Spain",
+    spain: "Spain",
+    mexico: "Mexico",
+    "méxico": "Mexico",
+    germany: "Germany",
+    deutschland: "Germany",
+    france: "France",
+    portugal: "Portugal",
+    italia: "Italy",
+    italy: "Italy",
+    uk: "United Kingdom",
+    "united kingdom": "United Kingdom",
+    usa: "United States",
+    "united states": "United States",
+    "ee. uu.": "United States",
+    osterreich: "Austria",
+    österreich: "Austria",
+    austria: "Austria",
+    suisse: "Switzerland",
+    schweiz: "Switzerland",
+    switzerland: "Switzerland",
+    nederland: "Netherlands",
+    netherlands: "Netherlands",
+    holland: "Netherlands"
+  };
+  const normalized = raw.toLowerCase();
+  return aliases[normalized] || raw;
+}
+
 function isLikelyCityToken(token) {
   const value = String(token || "").trim();
   if (!value) return false;
-  if (/\d/.test(value)) return false;
+  if (/\d{4,}/.test(value)) return false;
+  if (/^\d/.test(value)) return false;
+  if (/\b(?:calle|carrera|avenida|av\.?|road|street|st\.?|accesso|acceso|playa|beach|restaurant|restaurante|club|hotel)\b/i.test(value)) {
+    return false;
+  }
   return true;
 }
 
@@ -1931,9 +1970,15 @@ function resolveCityFromSecondaryText(secondaryText) {
     .map((part) => part.trim())
     .filter(Boolean);
   if (!parts.length) return "";
-  const cityCandidate = parts.find((part) => isLikelyCityToken(part));
-  if (cityCandidate) return cityCandidate;
-  return parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const candidate = parts[index];
+    if (!candidate) continue;
+    if (normalizeCountryName(candidate) !== candidate) continue;
+    const withoutPostal = candidate.replace(/\b\d{4,6}\b/g, "").replace(/\s{2,}/g, " ").trim();
+    if (isLikelyCityToken(withoutPostal)) return withoutPostal;
+  }
+  const fallback = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+  return String(fallback || "").replace(/\b\d{4,6}\b/g, "").trim();
 }
 
 function resolveCountryFromSecondaryText(secondaryText) {
@@ -1942,11 +1987,87 @@ function resolveCountryFromSecondaryText(secondaryText) {
     .map((part) => part.trim())
     .filter(Boolean);
   if (!parts.length) return "";
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const mapped = normalizeCountryName(parts[index]);
+    if (mapped !== parts[index]) return mapped;
+  }
   const candidate = parts[parts.length - 1] || "";
-  if (isLikelyCityToken(candidate) && parts.length >= 2) {
+  if (!candidate || isLikelyCityToken(candidate)) {
     return "";
   }
-  return candidate;
+  return normalizeCountryName(candidate);
+}
+
+async function fetchAddressDetailsWithNominatim(queryText) {
+  const query = String(queryText || "").trim();
+  if (!query) return null;
+  const endpoint = new URL("https://nominatim.openstreetmap.org/search");
+  endpoint.searchParams.set("format", "jsonv2");
+  endpoint.searchParams.set("limit", "1");
+  endpoint.searchParams.set("addressdetails", "1");
+  endpoint.searchParams.set("q", query);
+  const response = await fetch(endpoint.toString(), {
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": "de,en,es"
+    }
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  const first = Array.isArray(data) ? data[0] : null;
+  if (!first || typeof first !== "object") return null;
+  const address = first.address || {};
+  const postalCode = String(address.postcode || "").trim();
+  const country = normalizeCountryName(String(address.country || "").trim());
+  const city = String(
+    address.city
+    || address.town
+    || address.village
+    || address.municipality
+    || address.county
+    || ""
+  ).trim();
+  const street = String(
+    address.road
+    || address.pedestrian
+    || address.footway
+    || address.cycleway
+    || address.path
+    || ""
+  ).trim();
+  return {
+    postal_code: postalCode,
+    country,
+    city,
+    street
+  };
+}
+
+async function enrichPlaceDataWithFallbackAddressDetails(placeData) {
+  if (!placeData || typeof placeData !== "object") return placeData;
+  const missingPostal = !String(placeData.postal_code || "").trim();
+  const missingCountry = !String(placeData.country || "").trim();
+  const missingCity = !String(placeData.city || "").trim();
+  if (!missingPostal && !missingCountry && !missingCity) return placeData;
+  const query = [
+    placeData.formatted_address,
+    placeData.location_name,
+    placeData.street
+  ].filter(Boolean).join(", ");
+  if (!query) return placeData;
+  try {
+    const fallbackDetails = await fetchAddressDetailsWithNominatim(query);
+    if (!fallbackDetails) return placeData;
+    return {
+      ...placeData,
+      postal_code: placeData.postal_code || fallbackDetails.postal_code || "",
+      country: placeData.country || fallbackDetails.country || "",
+      city: placeData.city || fallbackDetails.city || "",
+      street: placeData.street || fallbackDetails.street || ""
+    };
+  } catch (_error) {
+    return placeData;
+  }
 }
 
 function buildFallbackPlaceDataFromSuggestion(placeId) {
@@ -1954,18 +2075,31 @@ function buildFallbackPlaceDataFromSuggestion(placeId) {
   if (!suggestion) return null;
   const primary = String(suggestion.suggestionText || "").trim();
   const secondary = String(suggestion.secondaryText || "").trim();
+  const primaryParts = primary.split(",").map((part) => part.trim()).filter(Boolean);
+  const venueName = primaryParts[0] || primary;
+  const streetFromPrimary = primaryParts.slice(1).join(", ").trim();
   const formattedAddress = [primary, secondary].filter(Boolean).join(", ");
   const parsed = parsePostalCodeAndCityFromFormattedAddress(secondary || formattedAddress);
+  const cityFromSecondary = resolveCityFromSecondaryText(secondary);
+  const cityFromParsed = parsed.city || "";
+  const city =
+    (cityFromSecondary && cityFromSecondary.length > 1 ? cityFromSecondary : "")
+    || (cityFromParsed && cityFromParsed.length > 1 ? cityFromParsed : "");
+  const country = resolveCountryFromSecondaryText(secondary) || resolveFallbackCountryFromFormattedAddress(formattedAddress);
+  const street =
+    streetFromPrimary
+    || (city && primary.includes(city) ? primary.replace(city, "").replace(/,\s*$/, "").trim() : "")
+    || primary;
   return {
     place_id: String(placeId || "").trim(),
-    location_name: primary,
+    location_name: venueName,
     formatted_address: formattedAddress,
-    street: primary,
-    city: resolveCityFromSecondaryText(secondary) || parsed.city || "",
+    street,
+    city,
     postal_code: parsed.postal_code || "",
     province: "",
     region: "",
-    country: resolveCountryFromSecondaryText(secondary) || "",
+    country,
     lat: null,
     lng: null
   };
@@ -1976,14 +2110,14 @@ async function fetchGooglePlaceDetails(placeId) {
   if (!apiKey) throw new Error("Google Places API key missing");
   const normalizedPlaceId = normalizeGooglePlaceId(placeId);
   if (!normalizedPlaceId) throw new Error("Google place id missing");
-  const endpoint = `https://places.googleapis.com/v1/places/${encodeURIComponent(normalizedPlaceId)}`;
-  const sessionToken = ensureLocationSearchToken();
-  const response = await fetch(endpoint, {
+  const endpoint = new URL(`https://places.googleapis.com/v1/places/${encodeURIComponent(normalizedPlaceId)}`);
+  endpoint.searchParams.set("key", apiKey);
+  // Use query params for details call to minimize cross-browser
+  // preflight/header variability in strict CORS environments.
+  endpoint.searchParams.set("fields", "id,displayName,formattedAddress,addressComponents,location");
+  const response = await fetch(endpoint.toString(), {
     headers: {
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask":
-        "id,displayName,formattedAddress,addressComponents,location",
-      "X-Goog-Session-Token": sessionToken
+      Accept: "application/json"
     }
   });
   if (!response.ok) {
@@ -2035,25 +2169,27 @@ function applySelectedPlaceToForm(placeData) {
 async function handleLocationSuggestionSelection(placeId) {
   if (!placeId) return;
   try {
-    console.log("[Marcha Debug] Selecting placeId:", placeId);
     const placeData = await fetchGooglePlaceDetails(placeId);
-    console.log("[Marcha Debug] Place details payload:", placeData);
+    const enrichedPlaceData = await enrichPlaceDataWithFallbackAddressDetails(placeData);
     locationAutocompleteState.suppressNextInputSearch = true;
-    applySelectedPlaceToForm(placeData);
+    applySelectedPlaceToForm(enrichedPlaceData);
     hideLocationSuggestionList();
     resetLocationSearchToken();
     setFormFeedback("", "info");
   } catch (error) {
-    console.warn("[Marcha Debug] Place details fetch failed:", error);
+    if (INSTALL_UI_DEBUG) {
+      console.warn("[Marcha Debug] Place details fetch failed:", error);
+    }
     const detailMessage = String(error?.message || "");
     const fallbackPlaceData = buildFallbackPlaceDataFromSuggestion(placeId);
     if (fallbackPlaceData) {
+      const enrichedFallbackData = await enrichPlaceDataWithFallbackAddressDetails(fallbackPlaceData);
       locationAutocompleteState.suppressNextInputSearch = true;
-      applySelectedPlaceToForm(fallbackPlaceData);
+      applySelectedPlaceToForm(enrichedFallbackData);
       hideLocationSuggestionList();
       resetLocationSearchToken();
       renderLocationAutocompleteStatus(
-        "Location selected (basic details). You can complete missing fields manually.",
+        "Location selected. Missing details were auto-completed when available.",
         "info"
       );
       return;
