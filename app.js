@@ -1923,6 +1923,7 @@ function isLikelyCityToken(token) {
   const value = String(token || "").trim();
   if (!value) return false;
   if (/\d/.test(value)) return false;
+  if (/[A-Za-zÀ-ÿ]{2,}\s+[A-Za-zÀ-ÿ]{2,}/.test(value)) return false;
   return true;
 }
 
@@ -1932,8 +1933,8 @@ function resolveCityFromSecondaryText(secondaryText) {
     .map((part) => part.trim())
     .filter(Boolean);
   if (!parts.length) return "";
-  const cityCandidate = parts.find((part) => isLikelyCityToken(part));
-  if (cityCandidate) return cityCandidate;
+  const cityCandidate = parts.find((part) => isLikelyCityToken(part) && part.length <= 48);
+  if (cityCandidate) return cityCandidate.replace(/\b(?:site|acceso|playa)\b/gi, "").trim();
   return parts.length >= 2 ? parts[parts.length - 2] : parts[0];
 }
 
@@ -1943,6 +1944,30 @@ function resolveCountryFromSecondaryText(secondaryText) {
     .map((part) => part.trim())
     .filter(Boolean);
   if (!parts.length) return "";
+  const countryAliases = {
+    espana: "Spain",
+    "españa": "Spain",
+    spain: "Spain",
+    mexico: "Mexico",
+    "méxico": "Mexico",
+    germany: "Germany",
+    deutschland: "Germany",
+    france: "France",
+    portugal: "Portugal",
+    italia: "Italy",
+    italy: "Italy",
+    uk: "United Kingdom",
+    "united kingdom": "United Kingdom",
+    usa: "United States",
+    "united states": "United States",
+    "ee. uu.": "United States"
+  };
+  const normalizedCountry = (value) => String(value || "").trim().toLowerCase();
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const candidatePart = parts[index];
+    const mapped = countryAliases[normalizedCountry(candidatePart)];
+    if (mapped) return mapped;
+  }
   const candidate = parts[parts.length - 1] || "";
   if (isLikelyCityToken(candidate) && parts.length >= 2) {
     return "";
@@ -1955,18 +1980,31 @@ function buildFallbackPlaceDataFromSuggestion(placeId) {
   if (!suggestion) return null;
   const primary = String(suggestion.suggestionText || "").trim();
   const secondary = String(suggestion.secondaryText || "").trim();
+  const primaryParts = primary.split(",").map((part) => part.trim()).filter(Boolean);
+  const venueName = primaryParts[0] || primary;
+  const streetFromPrimary = primaryParts.slice(1).join(", ").trim();
   const formattedAddress = [primary, secondary].filter(Boolean).join(", ");
   const parsed = parsePostalCodeAndCityFromFormattedAddress(secondary || formattedAddress);
+  const cityFromSecondary = resolveCityFromSecondaryText(secondary);
+  const cityFromParsed = parsed.city || "";
+  const city =
+    (cityFromSecondary && cityFromSecondary.length > 1 ? cityFromSecondary : "")
+    || (cityFromParsed && cityFromParsed.length > 1 ? cityFromParsed : "");
+  const country = resolveCountryFromSecondaryText(secondary) || resolveFallbackCountryFromFormattedAddress(formattedAddress);
+  const street =
+    streetFromPrimary
+    || (city && primary.includes(city) ? primary.replace(city, "").replace(/,\s*$/, "").trim() : "")
+    || primary;
   return {
     place_id: String(placeId || "").trim(),
-    location_name: primary,
+    location_name: venueName,
     formatted_address: formattedAddress,
-    street: primary,
-    city: resolveCityFromSecondaryText(secondary) || parsed.city || "",
+    street,
+    city,
     postal_code: parsed.postal_code || "",
     province: "",
     region: "",
-    country: resolveCountryFromSecondaryText(secondary) || "",
+    country,
     lat: null,
     lng: null
   };
