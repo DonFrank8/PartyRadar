@@ -361,6 +361,19 @@ body {
   position: relative;
 }
 
+.event-card__layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 32%) minmax(0, 1fr);
+  gap: 0.78rem;
+  align-items: start;
+}
+
+.event-card__main {
+  min-width: 0;
+  display: grid;
+  gap: 0.56rem;
+}
+
 .event-card::before {
   content: "";
   position: absolute;
@@ -439,11 +452,15 @@ body {
   position: relative;
   margin: 0;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 5 / 4;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(139, 165, 255, 0.35);
   background: linear-gradient(165deg, rgba(37, 46, 83, 0.84), rgba(10, 15, 30, 0.96));
+  min-height: 200px;
+  max-height: 300px;
+  position: sticky;
+  top: 0.45rem;
 }
 
 .event-card__preview--empty {
@@ -468,13 +485,13 @@ body {
 
 .event-card__preview-overlay strong {
   color: #f6f9ff;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   line-height: 1.2;
 }
 
 .event-card__preview-overlay span {
   color: #c9d8f7;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   line-height: 1.15;
 }
 
@@ -625,8 +642,17 @@ body {
     border-radius: 14px;
   }
 
+  .event-card__layout {
+    grid-template-columns: 1fr;
+    gap: 0.62rem;
+  }
+
   .event-card__preview {
     border-radius: 10px;
+    position: static;
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+    max-height: 220px;
   }
 
   .card-actions .button-secondary {
