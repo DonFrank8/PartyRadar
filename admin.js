@@ -281,30 +281,35 @@ function renderEventCard(event) {
       </div>
     `;
   card.innerHTML = `
-    <header class="event-card__head">
-      <div>
-        <h3>${escapeHtml(event.name)}</h3>
-        <p class="muted">${escapeHtml(eventPlace(event))}</p>
+    <div class="event-card__layout">
+      <div class="event-card__media-column">
+        ${previewMarkup}
       </div>
-      <span class="${statusPillClass(event.status)}">${escapeHtml(statusLabel(event.status))}</span>
-    </header>
+      <div class="event-card__content-column">
+        <header class="event-card__head">
+          <div>
+            <h3>${escapeHtml(event.name)}</h3>
+            <p class="muted">${escapeHtml(eventPlace(event))}</p>
+          </div>
+          <span class="${statusPillClass(event.status)}">${escapeHtml(statusLabel(event.status))}</span>
+        </header>
 
-    <ul class="event-meta">
-      <li><strong>Datum:</strong> ${escapeHtml(formatDateTime(event))}</li>
-      <li><strong>Wiederholung:</strong> ${escapeHtml(recurrenceLabel(event))}</li>
-      <li><strong>Regel:</strong> ${escapeHtml(recurrenceDetails(event))}</li>
-      <li><strong>Genre:</strong> ${escapeHtml(event.genre || "-")}</li>
-      <li><strong>Preis:</strong> ${escapeHtml(event.price_text || "-")}</li>
-      <li><strong>Eingereicht von:</strong> ${escapeHtml(event.submitted_by || "-")}</li>
-      <li><strong>Kontakt:</strong> ${escapeHtml(event.contact_email || "-")}</li>
-      <li><strong>Koordinaten:</strong> ${
+        <ul class="event-meta">
+          <li><strong>Datum:</strong> ${escapeHtml(formatDateTime(event))}</li>
+          <li><strong>Wiederholung:</strong> ${escapeHtml(recurrenceLabel(event))}</li>
+          <li><strong>Regel:</strong> ${escapeHtml(recurrenceDetails(event))}</li>
+          <li><strong>Genre:</strong> ${escapeHtml(event.genre || "-")}</li>
+          <li><strong>Preis:</strong> ${escapeHtml(event.price_text || "-")}</li>
+          <li><strong>Eingereicht von:</strong> ${escapeHtml(event.submitted_by || "-")}</li>
+          <li><strong>Kontakt:</strong> ${escapeHtml(event.contact_email || "-")}</li>
+          <li><strong>Koordinaten:</strong> ${
     event.lat !== null && event.lng !== null
       ? `${escapeHtml(String(event.lat))}, ${escapeHtml(String(event.lng))}`
       : "-"
   }</li>
-    </ul>
-
-    ${previewMarkup}
+        </ul>
+      </div>
+    </div>
     <p class="event-description">${escapeHtml(event.description || "Keine Beschreibung")}</p>
 
     <label class="field">

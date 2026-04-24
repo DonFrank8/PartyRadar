@@ -2967,11 +2967,128 @@ async function insertEventWithSchemaFallback(client, payload) {
 
 function splitGenres(value) {
   if (!value) return [];
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
-  return String(value)
-    .split(/[,/|;]+/)
+  if (Array.isArray(value)) {
+    return [...new Set(
+      value
+        .flatMap((item) => normalizedGenresFromRaw(item))
+        .filter(Boolean)
+    )];
+  }
+  const normalized = normalizedGenresFromRaw(value);
+  if (normalized.length) return normalized;
+  return [String(value).trim()].filter(Boolean);
+}
+
+const GENRE_NORMALIZATION_RULES = [
+  {
+    canonical: "Salsa",
+    patterns: [/\bsalsa\b/i, /\bslasa\b/i, /\bsalza\b/i, /\bsalssa\b/i]
+  },
+  {
+    canonical: "Bachata",
+    patterns: [/\bbachata\b/i, /\bbachatta\b/i, /\bbacchata\b/i]
+  },
+  {
+    canonical: "Latin",
+    patterns: [/\blatin\b/i, /\blatino\b/i, /\blatina\b/i, /\blatina?o?s?\b/i, /\bmusica latina\b/i, /\bmusica latin\b/i, /\bmúsica latina\b/i]
+  },
+  {
+    canonical: "Reggaeton",
+    patterns: [/\breggaeton\b/i, /\bregueton\b/i]
+  },
+  {
+    canonical: "DJ Set",
+    patterns: [/\bdj\s*set\b/i, /\bdjset\b/i]
+  },
+  {
+    canonical: "DJ",
+    patterns: [/\bdj\b/i]
+  },
+  {
+    canonical: "Live Band",
+    patterns: [/\blive\s*band\b/i]
+  },
+  {
+    canonical: "Live Music",
+    patterns: [/\blive\s*music\b/i, /\bmusica\s+en\s+vivo\b/i, /\bmúsica\s+en\s+vivo\b/i]
+  },
+  {
+    canonical: "House",
+    patterns: [/\bhouse\b/i, /\btech\s*house\b/i, /\bdeep\s*house\b/i]
+  },
+  {
+    canonical: "Techno",
+    patterns: [/\btechno\b/i]
+  },
+  {
+    canonical: "Electro",
+    patterns: [/\belectro\b/i]
+  },
+  {
+    canonical: "Rock",
+    patterns: [/\brock\b/i]
+  },
+  {
+    canonical: "Jazz",
+    patterns: [/\bjazz\b/i]
+  },
+  {
+    canonical: "Flamenco",
+    patterns: [/\bflamenco\b/i]
+  },
+  {
+    canonical: "Pop",
+    patterns: [/\bpop\b/i]
+  },
+  {
+    canonical: "Hip-Hop",
+    patterns: [/\bhip[\s-]?hop\b/i]
+  },
+  {
+    canonical: "R&B",
+    patterns: [/\br&b\b/i]
+  }
+];
+
+function normalizeGenreToken(rawToken) {
+  const token = String(rawToken || "").trim();
+  if (!token) return "";
+  const matchedRule = GENRE_NORMALIZATION_RULES.find((rule) => rule.patterns.some((pattern) => pattern.test(token)));
+  if (matchedRule) return matchedRule.canonical;
+  const normalized = token
+    .replace(/\b(y|and|&|con|mas|más|etc\.?)\b/gi, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!normalized) return "";
+  if (normalized.length <= 2) return "";
+  return normalized
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function normalizedGenresFromRaw(value) {
+  const text = String(value || "").trim();
+  if (!text) return [];
+  const rawParts = text
+    .split(/[,/|;]+|\s+\+\s+|\s+-\s+|\s+y\s+|\s+and\s+|\s+con\s+|\s+mas\s+|\s+más\s+/i)
     .map((part) => part.trim())
     .filter(Boolean);
+  if (!rawParts.length) rawParts.push(text);
+  const normalized = rawParts
+    .map((part) => normalizeGenreToken(part))
+    .filter(Boolean);
+
+  // If only a single broad token was recognized but source text implies "mixed latin",
+  // include the most common dance subgenres so users can find it via Salsa/Bachata chips.
+  if (normalized.length <= 1 && /\bbachata\b/i.test(text) && /\bsalsa\b|\bslasa\b|\bsalza\b/i.test(text)) {
+    normalized.push("Bachata", "Salsa");
+  }
+  if (normalized.length <= 1 && /\blatin|latino|latina|musica latina|música latina\b/i.test(text)) {
+    normalized.push("Latin");
+  }
+
+  return [...new Set(normalized)];
 }
 
 function loadFavoriteEventIds() {
@@ -3579,6 +3696,7 @@ function normalizeFilterText(value) {
 
 function eventSearchText(event) {
   // Unified search: name, artist, location and city are core dimensions.
+  const normalizedGenreText = splitGenres(event.genre).join(" ");
   return [
     event.name,
     event.artist_name,
@@ -3586,6 +3704,7 @@ function eventSearchText(event) {
     event.city,
     event.address,
     event.genre,
+    normalizedGenreText,
     event.description
   ]
     .join(" ")
@@ -4179,6 +4298,107 @@ function getMappableEvents(events) {
   return (Array.isArray(events) ? events : []).filter((event) => hasValidEventCoordinates(event));
 }
 
+const mapCoordinateEnrichmentState = {
+  attemptedIds: new Set(),
+  inFlightById: new Map()
+};
+
+function eventGeocodingQuery(event) {
+  const direct = String(event?.formatted_address || event?.geocoding_query || "").trim();
+  if (direct) return direct;
+  return [
+    event?.address,
+    event?.postal_code,
+    event?.city,
+    event?.country,
+    event?.location_name
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function patchEventCoordinatesById(eventId, coordinates) {
+  const normalizedId = String(eventId || "").trim();
+  if (!normalizedId) return false;
+  const lat = Number(coordinates?.lat);
+  const lng = Number(coordinates?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  let updated = false;
+  state.allEvents.forEach((event) => {
+    if (String(event?.id || "") !== normalizedId) return;
+    event.lat = lat;
+    event.lng = lng;
+    updated = true;
+  });
+  if (updated) {
+    state.allEvents = applyDistanceData(state.allEvents);
+  }
+  return updated;
+}
+
+async function geocodeMissingMapCoordinates(event) {
+  if (!event || hasValidEventCoordinates(event)) return null;
+  const eventId = String(event.id || "").trim();
+  if (!eventId) return null;
+  if (mapCoordinateEnrichmentState.inFlightById.has(eventId)) {
+    return mapCoordinateEnrichmentState.inFlightById.get(eventId);
+  }
+
+  const query = eventGeocodingQuery(event);
+  if (!query) {
+    mapCoordinateEnrichmentState.attemptedIds.add(eventId);
+    return null;
+  }
+
+  const provider = GEOCODING_PROVIDERS[GEOCODING_PROVIDER] || geocodeAddressWithNominatim;
+  const inFlightPromise = (async () => {
+    try {
+      const coordinates = await geocodeWithRetry(provider, query);
+      if (!coordinates) return null;
+      const lat = Number(coordinates.lat);
+      const lng = Number(coordinates.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      return {
+        lat,
+        lng
+      };
+    } catch (_error) {
+      return null;
+    } finally {
+      mapCoordinateEnrichmentState.attemptedIds.add(eventId);
+      mapCoordinateEnrichmentState.inFlightById.delete(eventId);
+    }
+  })();
+
+  mapCoordinateEnrichmentState.inFlightById.set(eventId, inFlightPromise);
+  return inFlightPromise;
+}
+
+function enqueueMapCoordinateEnrichment(events) {
+  const candidates = (Array.isArray(events) ? events : [])
+    .filter((event) => {
+      const eventId = String(event?.id || "").trim();
+      if (!eventId) return false;
+      if (hasValidEventCoordinates(event)) return false;
+      if (mapCoordinateEnrichmentState.attemptedIds.has(eventId)) return false;
+      if (mapCoordinateEnrichmentState.inFlightById.has(eventId)) return false;
+      return Boolean(eventGeocodingQuery(event));
+    })
+    .slice(0, 6);
+
+  if (!candidates.length) return;
+
+  candidates.forEach((event) => {
+    geocodeMissingMapCoordinates(event).then((coordinates) => {
+      if (!coordinates) return;
+      const updated = patchEventCoordinatesById(event.id, coordinates);
+      if (!updated) return;
+      applyFilters();
+    });
+  });
+}
+
 function loadStoredUserLocation() {
   try {
     const raw = window.localStorage.getItem(USER_LOCATION_STORAGE_KEY);
@@ -4463,6 +4683,7 @@ function updateMapSheetSortControls() {
 
 function applyFilters() {
   const filters = getActiveFilters();
+  enqueueMapCoordinateEnrichment(state.allEvents);
   const filtered = state.allEvents.filter((event) => {
     const haystack = eventSearchText(event);
     const eventDate = parseIsoDate(event.event_date || "");
@@ -5263,6 +5484,9 @@ function renderMapMarkers() {
   activeMarkerId = null;
   const bounds = [];
 
+  const enrichmentCandidates = state.filteredEvents.length ? state.filteredEvents : state.allEvents;
+  enqueueMapCoordinateEnrichment(enrichmentCandidates);
+
   const filteredMappableEvents = getMappableEvents(state.filteredEvents);
   const allMappableEvents = getMappableEvents(state.allEvents);
   const markerSource = filteredMappableEvents.length ? filteredMappableEvents : allMappableEvents;
@@ -5348,6 +5572,15 @@ function renderEventDetails(event) {
   const timeText = event.event_time || t("details_time_fallback");
   const genreText = event.genre || "-";
   const priceText = formatPrice(event.price_text);
+  const topGenreBadge = genreText && genreText !== "-"
+    ? `<span class="event-details__badge event-details__badge--genre">${genreText}</span>`
+    : "";
+  const topPriceBadge = priceText
+    ? `<span class="event-details__badge">${priceText}</span>`
+    : "";
+  const topBadgesMarkup = (topGenreBadge || topPriceBadge)
+    ? `<div class="event-details__badges">${topGenreBadge}${topPriceBadge}</div>`
+    : "";
   const locationLead = locationName || event.city || fallbackLocationLine || "-";
   const addressOnlyLine = [event.address, event.postal_code]
     .map((value) => String(value || "").trim())
@@ -5415,6 +5648,7 @@ function renderEventDetails(event) {
             <p class="event-details__location-lead">📍 ${locationLead}</p>
             ${navigationCtaInline}
           </div>
+          ${topBadgesMarkup}
           <p class="event-details__venue-detail">${addressDetail}</p>
           ${cityCountryMarkup}
           ${locationExtraMarkup}

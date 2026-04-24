@@ -2284,6 +2284,12 @@ body.is-standalone-app .hero-first-open__actions {
   font-size: 0.78rem;
 }
 
+.event-details__badge--genre {
+  border-color: rgba(173, 148, 255, 0.52);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.26), rgba(236, 72, 153, 0.2));
+  color: #f3e8ff;
+}
+
 .event-details__grid {
   display: grid;
   grid-template-columns: 1fr;
