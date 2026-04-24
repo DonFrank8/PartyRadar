@@ -3746,6 +3746,14 @@ function normalizeFilterText(value) {
     .toLowerCase();
 }
 
+function currentSearchQuery() {
+  return normalizeFilterText(
+    dom.heroSearchInput?.value
+    || dom.searchInput?.value
+    || ""
+  );
+}
+
 function eventSearchText(event) {
   // Unified search: name, artist, location and city are core dimensions.
   const normalizedGenreText = splitGenres(event.genre).join(" ");
@@ -4264,13 +4272,8 @@ function applyFiltersFromQuery() {
 function getActiveFilters() {
   const activeQuickCategory = quickCategoryById(state.activeQuickCategoryId);
   const hasUserCoordinates = hasUserLocation();
-  const searchInputValue = dom.searchInput
-    ? dom.searchInput.value
-    : dom.heroSearchInput
-      ? dom.heroSearchInput.value
-      : "";
   return {
-    search: normalizeFilterText(searchInputValue),
+    search: currentSearchQuery(),
     city: dom.cityFilter.value,
     dateRange: cloneDateRange(state.dateRange),
     genres: new Set([...state.activeGenres].map((genre) => genre.toLowerCase())),
@@ -4952,7 +4955,13 @@ function expandRecurringEvents(rawEvents) {
 }
 
 function pickFeaturedEvents() {
-  const source = state.filteredEvents.length ? state.filteredEvents : state.allEvents;
+  const searchQuery = currentSearchQuery();
+  let source = state.filteredEvents.length ? state.filteredEvents : state.allEvents;
+  if (searchQuery) {
+    const searchMatches = state.allEvents.filter((event) => eventSearchText(event).includes(searchQuery));
+    source = searchMatches.length ? searchMatches : source;
+  }
+  if (!source.length && state.allEvents.length) source = state.allEvents;
   return [...source]
     .sort((a, b) => {
       const imageWeightA = a.image_url ? 0 : 1;
@@ -6075,7 +6084,11 @@ function bindEvents() {
     dom.heroSearchInput.addEventListener("input", () => {
       syncSidebarFromHeroControls();
       syncMapSheetControlsFromSidebar();
-      debouncedApplyFilters();
+      if (currentSearchQuery() && state.activeQuickCategoryId !== "all") {
+        state.activeQuickCategoryId = "all";
+        renderQuickCategories();
+      }
+      applyFilters();
     });
   }
   if (dom.heroCityFilter) {
