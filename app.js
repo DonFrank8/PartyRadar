@@ -4264,8 +4264,13 @@ function applyFiltersFromQuery() {
 function getActiveFilters() {
   const activeQuickCategory = quickCategoryById(state.activeQuickCategoryId);
   const hasUserCoordinates = hasUserLocation();
+  const searchInputValue = dom.searchInput
+    ? dom.searchInput.value
+    : dom.heroSearchInput
+      ? dom.heroSearchInput.value
+      : "";
   return {
-    search: normalizeFilterText(dom.searchInput.value),
+    search: normalizeFilterText(searchInputValue),
     city: dom.cityFilter.value,
     dateRange: cloneDateRange(state.dateRange),
     genres: new Set([...state.activeGenres].map((genre) => genre.toLowerCase())),
