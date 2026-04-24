@@ -361,10 +361,16 @@ const I18N = {
     source_demo_error: "Temporäre Daten",
     no_events_found: "Keine passenden Vibes gefunden.",
     details_empty: "Wähle ein Event aus, um Details, Bild und Route zu sehen.",
+    details_artist: "Künstler",
     details_location: "Location",
+    details_address: "Adresse",
+    details_description: "Beschreibung",
     details_date: "Datum",
-    details_genre: "Genre",
-    details_price: "Preis",
+    details_time: "Uhrzeit",
+    details_category: "Kategorie",
+    details_entry: "Eintritt",
+    details_genre: "Kategorie",
+    details_price: "Eintritt",
     details_navigate: "Route öffnen",
     details_view: "Details ansehen",
     details_back: "Zurück zur Vorschau",
@@ -603,10 +609,16 @@ const I18N = {
     source_demo_error: "Temporary data",
     no_events_found: "No matching vibes found.",
     details_empty: "Select an event to view details, image and directions.",
+    details_artist: "Artist",
     details_location: "Location",
+    details_address: "Address",
+    details_description: "Description",
     details_date: "Date",
-    details_genre: "Genre",
-    details_price: "Price",
+    details_time: "Time",
+    details_category: "Category",
+    details_entry: "Entry",
+    details_genre: "Category",
+    details_price: "Entry",
     details_navigate: "Open route",
     details_view: "View details",
     details_back: "Back to preview",
@@ -845,16 +857,22 @@ const I18N = {
     source_demo_error: "Datos temporales",
     no_events_found: "No se encontraron vibes para tu búsqueda.",
     details_empty: "Selecciona un evento para ver detalles, imagen y ruta.",
-    details_location: "Ubicación",
+    details_artist: "Artista",
+    details_location: "Lugar",
+    details_address: "Dirección",
+    details_description: "Descripción",
     details_date: "Fecha",
-    details_genre: "Género",
-    details_price: "Precio",
+    details_time: "Hora",
+    details_category: "Categoría",
+    details_entry: "Entrada",
+    details_genre: "Categoría",
+    details_price: "Entrada",
     details_navigate: "Abrir ruta",
     details_view: "Ver detalles",
     details_back: "Volver a la vista previa",
     details_share: "Compartir",
     details_save: "Guardar",
-    details_close_short: "Atrás",
+    details_close_short: "Volver",
     details_share_copy_success: "Enlace copiado.",
     details_share_not_supported: "Compartir no es compatible en este dispositivo.",
     details_share_error: "No se puede compartir ahora mismo.",
@@ -1271,6 +1289,86 @@ function t(key, params = {}) {
     (text, [paramKey, paramValue]) => text.replaceAll(`{${paramKey}}`, String(paramValue)),
     template
   );
+}
+
+function resolveLocalizedFieldLanguage(langValue = state.lang) {
+  const normalized = String(langValue || "").trim().toLowerCase();
+  if (normalized === "en" || normalized === "es") return normalized;
+  return "de";
+}
+
+function localizedLanguageFallbackOrder(langValue = state.lang) {
+  const resolvedLang = resolveLocalizedFieldLanguage(langValue);
+  if (resolvedLang === "en") return ["de", "es"];
+  if (resolvedLang === "es") return ["de", "en"];
+  return ["es", "en"];
+}
+
+function readEventFieldValue(event, fieldName) {
+  if (!event || !fieldName) return "";
+  const rawValue = event[fieldName];
+  if (rawValue === null || rawValue === undefined) return "";
+  return String(rawValue).trim();
+}
+
+function getLocalizedValue(event, baseKey, lang = state.lang, aliases = []) {
+  const normalizedBase = String(baseKey || "").trim();
+  if (!normalizedBase) return "";
+  const language = resolveLocalizedFieldLanguage(lang);
+  const fallbackLanguages = localizedLanguageFallbackOrder(language);
+  const keys = [normalizedBase, ...aliases]
+    .map((key) => String(key || "").trim())
+    .filter(Boolean);
+  const candidates = [];
+
+  keys.forEach((key) => candidates.push(`${key}_${language}`));
+  keys.forEach((key) => candidates.push(key));
+  fallbackLanguages.forEach((fallbackLanguage) => {
+    keys.forEach((key) => candidates.push(`${key}_${fallbackLanguage}`));
+  });
+
+  const seen = new Set();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    const value = readEventFieldValue(event, candidate);
+    if (value) return value;
+  }
+  return "";
+}
+
+function getEventTitle(event, lang = state.lang) {
+  return getLocalizedValue(event, "title", lang, ["name", "event_title"]) || "Untitled Event";
+}
+
+function getEventDescription(event, lang = state.lang) {
+  return getLocalizedValue(event, "description", lang, ["details", "event_description"]) || t("details_no_description");
+}
+
+function getEventVenue(event, lang = state.lang) {
+  return getLocalizedValue(event, "venue", lang, ["location_name", "location"]);
+}
+
+function getEventAddress(event, lang = state.lang) {
+  return getLocalizedValue(event, "address", lang, ["street", "formatted_address"]);
+}
+
+function getEventCategory(event, lang = state.lang) {
+  return getLocalizedValue(event, "genre", lang, ["music_genre", "category", "event_category"]);
+}
+
+function getEventArtist(event, lang = state.lang) {
+  return getLocalizedValue(event, "artist_name", lang, ["artist", "event_artist"]);
+}
+
+function eventDisplayVenue(event, lang = state.lang) {
+  return getEventVenue(event, lang)
+    || String(event?.location_name || event?.location || "").trim();
+}
+
+function eventDisplayAddress(event, lang = state.lang) {
+  return getEventAddress(event, lang)
+    || String(event?.address || event?.street || event?.formatted_address || "").trim();
 }
 
 function applyStaticTranslations() {
@@ -3695,7 +3793,9 @@ function formatPrice(priceText) {
 }
 
 function formatEventPlace(event) {
-  const parts = [event.location_name, event.address, event.city].filter(Boolean);
+  const venue = getEventVenue(event);
+  const address = getEventAddress(event);
+  const parts = [venue, address, event.city].filter(Boolean);
   return parts.length ? parts.join(", ") : "-";
 }
 
@@ -3788,14 +3888,15 @@ function getRecurringText(event, lang = state.lang) {
 }
 
 function buildNavigationAddressQuery(event) {
-  const strictAddressQuery = [event.formatted_address, event.address, event.city, event.country]
+  const address = eventDisplayAddress(event);
+  const strictAddressQuery = [event.formatted_address, address, event.city, event.country]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(", ");
   if (strictAddressQuery) return strictAddressQuery;
 
   // Fallback for legacy records where only geocoding_query/postal data exists.
-  return [event.geocoding_query, event.address, event.postal_code, event.city, event.country, event.location_name]
+  return [event.geocoding_query, address, event.postal_code, event.city, event.country, eventDisplayVenue(event)]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(", ");
@@ -3824,7 +3925,7 @@ function buildNavigationUrl(event) {
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${event.lat},${event.lng}`)}`;
   }
 
-  const addressQuery = [event?.formatted_address, event?.address, event?.city]
+  const addressQuery = [event?.formatted_address, eventDisplayAddress(event), event?.city]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(" ");
@@ -3833,7 +3934,7 @@ function buildNavigationUrl(event) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`;
   }
 
-  const fallbackQuery = [event?.location_name, event?.city, event?.country]
+  const fallbackQuery = [eventDisplayVenue(event), event?.city, event?.country]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(" ");
@@ -3861,11 +3962,11 @@ function openNavigationForEvent(event) {
 
 function buildEventSharePayload(event) {
   if (!event) return null;
-  const title = String(event.name || "").trim() || "GoMarcha Event";
+  const title = getEventTitle(event) || "GoMarcha Event";
   const dateLine = [formatDate(event.event_date, true), event.event_time || t("details_time_fallback")]
     .filter(Boolean)
     .join(" • ");
-  const locationLine = [event.location_name, event.city, event.country]
+  const locationLine = [getEventVenue(event), event.city, event.country]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(" · ");
@@ -3918,16 +4019,22 @@ function currentSearchQuery() {
 
 function eventSearchText(event) {
   // Unified search: name, artist, location and city are core dimensions.
-  const normalizedGenreText = splitGenres(event.genre).join(" ");
+  const eventTitle = getEventTitle(event);
+  const eventArtist = getEventArtist(event);
+  const eventVenue = getEventVenue(event);
+  const eventAddress = getEventAddress(event);
+  const eventCategory = getEventCategory(event);
+  const eventDescription = getEventDescription(event);
+  const normalizedGenreText = splitGenres(eventCategory).join(" ");
   return [
-    event.name,
-    event.artist_name,
-    event.location_name,
+    eventTitle,
+    eventArtist,
+    eventVenue,
     event.city,
-    event.address,
-    event.genre,
+    eventAddress,
+    eventCategory,
     normalizedGenreText,
-    event.description
+    eventDescription
   ]
     .join(" ")
     .toLowerCase();
@@ -5223,29 +5330,32 @@ function createFeaturedCard(event) {
   const card = document.createElement("article");
   card.className = "featured-card";
   const navigationUrl = buildNavigationUrl(event);
-  const genre = splitGenres(event.genre)[0] || event.genre || "-";
-  const artistName = String(event.artist_name || "").trim();
-  const locationLine = [event.location_name, event.city]
+  const eventTitle = getEventTitle(event);
+  const eventArtist = getEventArtist(event);
+  const eventVenue = getEventVenue(event);
+  const eventCategory = getEventCategory(event);
+  const genre = splitGenres(eventCategory)[0] || eventCategory || "-";
+  const locationLine = [eventVenue, event.city]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(" · ");
   const dateTimeLine = [formatDate(event.event_date, true), event.event_time || t("details_time_fallback")]
     .filter(Boolean)
     .join(" • ");
-  const featuredArtistLine = artistName
-    ? `<p class="featured-card__artist">🎤 ${artistName}</p>`
+  const featuredArtistLine = eventArtist
+    ? `<p class="featured-card__artist">🎤 ${eventArtist}</p>`
     : "";
   card.innerHTML = `
     <div class="featured-card__media">
       ${
         event.image_url
-          ? `<img class="featured-card__image" src="${event.image_url}" alt="${event.name}" loading="lazy">`
+          ? `<img class="featured-card__image" src="${event.image_url}" alt="${eventTitle}" loading="lazy">`
           : `<div class="featured-card__image-fallback" aria-hidden="true"><span>${iconForGenre(genre)}</span></div>`
       }
       <div class="featured-card__shade"></div>
       <div class="featured-card__content">
         <span class="featured-card__badge">${genre}</span>
-        <h3>${event.name}</h3>
+        <h3>${eventTitle}</h3>
         ${featuredArtistLine}
         <p class="featured-card__meta">📍 ${locationLine || "-"}</p>
         <p class="featured-card__meta">${dateTimeLine}</p>
@@ -5626,7 +5736,10 @@ function createEventCard(event, index = 0) {
   card.className = "event-card";
   card.dataset.eventId = event.id;
   card.style.setProperty("--card-index", String(index));
-  const primaryGenre = splitGenres(event.genre)[0] || event.genre || "-";
+  const eventTitle = getEventTitle(event);
+  const eventArtist = getEventArtist(event);
+  const eventCategory = getEventCategory(event);
+  const primaryGenre = splitGenres(eventCategory)[0] || eventCategory || "-";
   const favoriteActive = isFavoriteEvent(event.id);
   const recurrenceLineText = getRecurringText(event, state.lang);
   const distanceLine = Number.isFinite(event.distance_km)
@@ -5639,7 +5752,7 @@ function createEventCard(event, index = 0) {
     <div class="event-card__media">
       ${
         event.image_url
-          ? `<img class="event-card__image" src="${event.image_url}" alt="${event.name}" loading="lazy">`
+          ? `<img class="event-card__image" src="${event.image_url}" alt="${eventTitle}" loading="lazy">`
           : `<div class="event-card__image-fallback" aria-hidden="true"><span>${iconForGenre(primaryGenre)}</span></div>`
       }
       <span class="event-card__genre-badge">${primaryGenre}</span>
@@ -5655,8 +5768,8 @@ function createEventCard(event, index = 0) {
     </div>
     <div class="event-card__body">
       <div class="event-card__header">
-        <h4 class="event-card__title">${event.name}</h4>
-        <div class="event-card_artist">${event.artist_name ? `Mit ${event.artist_name}` : ""}</div>
+        <h4 class="event-card__title">${eventTitle}</h4>
+        <div class="event-card_artist">${eventArtist ? `${t("details_artist")}: ${eventArtist}` : ""}</div>
       </div>
       ${recurrenceLine}
       ${distanceLine}
@@ -5735,7 +5848,8 @@ function renderMapSheetEmptyState() {
 }
 
 function createMarkerIcon(event, active = false) {
-  const primaryGenre = splitGenres(event.genre)[0] || "";
+  const eventCategory = getEventCategory(event);
+  const primaryGenre = splitGenres(eventCategory)[0] || "";
   return L.divIcon({
     className: "marker-pin-wrap",
     html: `<div class="marker-pin ${active ? "marker-pin--active" : ""}"><span>${iconForGenre(primaryGenre)}</span></div>`,
@@ -5815,7 +5929,10 @@ function initMap() {
 }
 
 function markerPopupHtml(event) {
-  const locationLine = [event.location_name, event.address, event.city].filter(Boolean).join(", ");
+  const eventTitle = getEventTitle(event);
+  const eventVenue = getEventVenue(event);
+  const eventAddress = getEventAddress(event);
+  const locationLine = [eventVenue, eventAddress, event.city].filter(Boolean).join(", ");
   const navigationUrl = buildNavigationUrl(event);
   const recurringText = getRecurringText(event, state.lang);
   const recurringLine = recurringText ? `<span>📅 ${recurringText}</span><br>` : "";
@@ -5824,11 +5941,11 @@ function markerPopupHtml(event) {
     : "";
   return `
     <div class="popup">
-      <strong>${event.name}</strong><br>
+      <strong>${eventTitle}</strong><br>
       <span>${locationLine || "-"}</span><br>
       <span>${formatDateTime(event)}</span><br>
       ${recurringLine}
-      <span>${event.genre || "-"} - ${formatPrice(event.price_text)}</span>
+      <span>${getEventCategory(event) || "-"} - ${formatPrice(event.price_text)}</span>
       ${navigationLink}
     </div>
   `;
@@ -5954,13 +6071,21 @@ function renderEventDetails(event) {
   }
 
   dom.eventDetails.className = "event-details event-details--filled";
-  const locationName = String(event.location_name || "").trim();
+  const eventTitle = getEventTitle(event);
+  const eventDescription = getEventDescription(event);
+  const eventVenue = getEventVenue(event);
+  const eventAddress = getEventAddress(event);
+  const eventArtist = getEventArtist(event);
+  const eventCategory = getEventCategory(event) || "-";
+  const locationName = String(eventVenue || "").trim();
   const venueCategory = String(event.venue_category || event.location_category || "").trim();
-  const fallbackLocationLine = [locationName, event.address, event.city].filter(Boolean).join(", ");
+  const fallbackLocationLine = [locationName, eventAddress, event.city].filter(Boolean).join(", ");
   const navigationUrl = buildNavigationUrl(event);
-  const mainArtist = String(event.artist_name || "").trim();
+  const mainArtist = String(eventArtist || "").trim();
   const additionalArtists = String(event.additional_artists || "").trim();
-  const artistLine = mainArtist ? `<p class="event-details__artist">Mit ${mainArtist}</p>` : "";
+  const artistLine = mainArtist
+    ? `<p class="event-details__artist">${t("details_artist")}: ${mainArtist}</p>`
+    : "";
   const additionalArtistsLine = additionalArtists
     ? `<p class="event-details__subtitle">${additionalArtists}</p>`
     : "";
@@ -5970,8 +6095,8 @@ function renderEventDetails(event) {
     : "";
   const dateText = formatDate(event.event_date, true);
   const timeText = event.event_time || t("details_time_fallback");
-  const dateTimeText = [dateText, timeText].filter(Boolean).join(" • ");
-  const genreText = event.genre || "-";
+  const dateTimeText = [dateText, timeText].filter(Boolean).join(" · ");
+  const genreText = eventCategory;
   const priceText = formatPrice(event.price_text);
   const topGenreBadge = genreText && genreText !== "-"
     ? `<span class="event-details__badge event-details__badge--genre">${genreText}</span>`
@@ -5983,7 +6108,7 @@ function renderEventDetails(event) {
     ? `<div class="event-details__badges">${topGenreBadge}${topPriceBadge}</div>`
     : "";
   const locationLead = locationName || event.city || fallbackLocationLine || "-";
-  const addressOnlyLine = [event.address, event.postal_code]
+  const addressOnlyLine = [eventAddress, event.postal_code]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(", ");
@@ -6002,17 +6127,17 @@ function renderEventDetails(event) {
   const distancePlaceholder = hasCoordinates
     ? `<p class="event-details__distance-slot" data-distance-slot data-lat="${event.lat}" data-lng="${event.lng}"></p>`
     : "";
-  const descriptionText = String(event.description || t("details_no_description")).trim();
+  const descriptionText = String(eventDescription || t("details_no_description")).trim();
   const descriptionMarkup = descriptionText
     ? `<article class="event-details__section event-details__section--description">
-          <h5>${t("form_label_description")}</h5>
+          <h5>${t("details_description")}</h5>
           <p>${descriptionText}</p>
        </article>`
     : "";
   const previewArtistLine = mainArtist || additionalArtists || "";
   const previewLocationLine = [locationLead, addressDetail].filter(Boolean).join(" · ");
   const previewImageMarkup = event.image_url
-    ? `<img class="event-details__preview-image" src="${event.image_url}" alt="${event.name}" loading="lazy">`
+    ? `<img class="event-details__preview-image" src="${event.image_url}" alt="${eventTitle}" loading="lazy">`
     : `<span class="event-details__preview-image-fallback" aria-hidden="true">🎵</span>`;
   const previewArtistMarkup = previewArtistLine
     ? `<span class="event-details__preview-artist">${previewArtistLine}</span>`
@@ -6073,7 +6198,7 @@ function renderEventDetails(event) {
           ${previewImageMarkup}
         </span>
         <span class="event-details__preview-main">
-          <span class="event-details__preview-title">${event.name}</span>
+          <span class="event-details__preview-title">${eventTitle}</span>
           ${previewArtistMarkup}
           <span class="event-details__preview-meta">${previewLocationLine || "-"}</span>
           <span class="event-details__preview-meta">${dateTimeText}</span>
@@ -6092,17 +6217,17 @@ function renderEventDetails(event) {
         <div class="event-details__media">
           ${
             event.image_url
-              ? `<img class="event-details__image" src="${event.image_url}" alt="${event.name}" loading="lazy">`
+              ? `<img class="event-details__image" src="${event.image_url}" alt="${eventTitle}" loading="lazy">`
               : `<div class="event-details__image-fallback" aria-hidden="true"><span>🎵</span></div>`
           }
         </div>
         <div class="event-details__content">
           <div class="event-details__header">
-            <h4>${event.name}</h4>
+            <h4>${eventTitle}</h4>
             ${artistLine}
             ${additionalArtistsLine}
-            <p class="event-details__location-lead">📍 ${locationLead}</p>
-            <p class="event-details__venue-detail">${addressDetail}</p>
+            <p class="event-details__location-lead">📍 ${t("details_location")}: ${locationLead}</p>
+            <p class="event-details__venue-detail">${t("details_address")}: ${addressDetail}</p>
             ${cityCountryMarkup}
             ${locationExtraMarkup}
             ${distancePlaceholder}
@@ -6112,14 +6237,18 @@ function renderEventDetails(event) {
           <div class="event-details__flow">
             <article class="event-details__section">
               <h5>${t("details_date")}</h5>
-              <p>${dateTimeText}</p>
+              <p>${dateText}</p>
             </article>
             <article class="event-details__section">
-              <h5>${t("details_genre")}</h5>
+              <h5>${t("details_time")}</h5>
+              <p>${timeText}</p>
+            </article>
+            <article class="event-details__section">
+              <h5>${t("details_category")}</h5>
               <p>${genreText}</p>
             </article>
             <article class="event-details__section">
-              <h5>${t("details_price")}</h5>
+              <h5>${t("details_entry")}</h5>
               <p>${priceText}</p>
             </article>
           </div>
