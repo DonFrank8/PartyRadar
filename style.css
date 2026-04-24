@@ -1979,6 +1979,7 @@ body.is-standalone-app .hero-first-open__actions {
   min-height: 0;
   max-height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 0.5rem calc(0.7rem + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
 }
@@ -2119,13 +2120,13 @@ body.is-standalone-app .hero-first-open__actions {
 }
 
 .map-bottom-sheet[data-sheet-state="full"] .event-details {
-  max-height: 100vh;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .map-bottom-sheet[data-sheet-state="half"] .event-details {
-  max-height: 100vh;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .map-bottom-sheet[data-sheet-state="full"] .map-bottom-sheet__top {
@@ -2389,6 +2390,7 @@ body.is-standalone-app .hero-first-open__actions {
   min-height: 0;
   max-height: 280px;
   background: linear-gradient(150deg, rgba(124, 58, 237, 0.34), rgba(236, 72, 153, 0.28), rgba(236, 72, 153, 0.24));
+  touch-action: pan-y;
 }
 
 .event-details__content {
@@ -2419,6 +2421,8 @@ body.is-standalone-app .hero-first-open__actions {
   object-fit: cover;
   object-position: center;
   display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .event-details__image-fallback {
