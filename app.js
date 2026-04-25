@@ -4506,15 +4506,21 @@ function addEventToCalendar(event) {
 async function shareEventFromDetails(event) {
   const payload = buildEventSharePayload(event);
   if (!payload) return;
+  const whatsappUrl = buildWhatsappShareUrl(event);
   if (navigator.share) {
     try {
       await navigator.share(payload);
       return;
     } catch (error) {
       if (String(error?.name || "") === "AbortError") return;
-      setStatus(t("details_share_error"), "warning");
-      return;
+      // Continue with WhatsApp and clipboard fallback below.
     }
+  }
+  if (whatsappUrl) {
+    const openedWindow = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    if (openedWindow) return;
+    window.location.href = whatsappUrl;
+    return;
   }
   if (navigator.clipboard?.writeText) {
     try {
