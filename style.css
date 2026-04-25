@@ -2133,6 +2133,10 @@ body.is-standalone-app .hero-first-open__actions {
   color: #fff4de;
 }
 
+.event-details__action--whatsapp {
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
 .map-bottom-sheet[data-sheet-state="peek"] .event-details {
   padding: 0.5rem 0.44rem 0.58rem;
   gap: 0.48rem;
