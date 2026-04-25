@@ -375,11 +375,17 @@ const I18N = {
     details_view: "Details ansehen",
     details_back: "Zurück zur Vorschau",
     details_share: "Teilen",
+    details_share_whatsapp: "WhatsApp",
+    details_calendar_add: "Zum Kalender",
     details_save: "Favorit",
     details_close_short: "Zurück",
     details_share_copy_success: "Link kopiert.",
     details_share_not_supported: "Teilen wird auf diesem Gerät nicht unterstützt.",
     details_share_error: "Teilen ist gerade nicht möglich.",
+    details_calendar_success: "Kalendereintrag heruntergeladen.",
+    details_calendar_error: "Kalendereintrag konnte nicht erstellt werden.",
+    details_favorite_added: "Zu Favoriten hinzugefügt.",
+    details_favorite_removed: "Aus Favoriten entfernt.",
     details_free: "Eintritt frei",
     details_no_description: "Keine Beschreibung vorhanden.",
     details_time_fallback: "Uhrzeit folgt",
@@ -623,11 +629,17 @@ const I18N = {
     details_view: "View details",
     details_back: "Back to preview",
     details_share: "Share",
+    details_share_whatsapp: "WhatsApp",
+    details_calendar_add: "Add to calendar",
     details_save: "Save",
     details_close_short: "Back",
     details_share_copy_success: "Link copied.",
     details_share_not_supported: "Sharing is not supported on this device.",
     details_share_error: "Unable to share right now.",
+    details_calendar_success: "Calendar entry downloaded.",
+    details_calendar_error: "Unable to create calendar entry.",
+    details_favorite_added: "Added to favorites.",
+    details_favorite_removed: "Removed from favorites.",
     details_free: "Free entry",
     details_no_description: "No description available.",
     details_time_fallback: "Time TBD",
@@ -871,11 +883,17 @@ const I18N = {
     details_view: "Ver detalles",
     details_back: "Volver a la vista previa",
     details_share: "Compartir",
+    details_share_whatsapp: "WhatsApp",
+    details_calendar_add: "Anadir al calendario",
     details_save: "Guardar",
     details_close_short: "Volver",
     details_share_copy_success: "Enlace copiado.",
     details_share_not_supported: "Compartir no es compatible en este dispositivo.",
     details_share_error: "No se puede compartir ahora mismo.",
+    details_calendar_success: "Entrada de calendario descargada.",
+    details_calendar_error: "No se pudo crear la entrada de calendario.",
+    details_favorite_added: "Anadido a favoritos.",
+    details_favorite_removed: "Eliminado de favoritos.",
     details_free: "Entrada gratuita",
     details_no_description: "No hay descripción disponible.",
     details_time_fallback: "Hora por confirmar",
@@ -3978,6 +3996,108 @@ function buildEventSharePayload(event) {
   };
 }
 
+function buildWhatsappShareUrl(event) {
+  const payload = buildEventSharePayload(event);
+  if (!payload) return "";
+  const shareText = [payload.title, payload.text, payload.url].filter(Boolean).join("\n");
+  if (!shareText) return "";
+  return `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+}
+
+function formatEventCalendarDateStamp(dateValue, allDay = false) {
+  const year = dateValue.getUTCFullYear();
+  const month = String(dateValue.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(dateValue.getUTCDate()).padStart(2, "0");
+  if (allDay) return `${year}${month}${day}`;
+  const hours = String(dateValue.getUTCHours()).padStart(2, "0");
+  const minutes = String(dateValue.getUTCMinutes()).padStart(2, "0");
+  const seconds = String(dateValue.getUTCSeconds()).padStart(2, "0");
+  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+}
+
+function escapeIcsText(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
+}
+
+function buildEventCalendarData(event) {
+  if (!event) return null;
+  const dateRaw = String(event.event_date || "").trim();
+  if (!dateRaw) return null;
+
+  const startTime = String(event.event_time || "").trim();
+  const hasTime = /^\d{1,2}:\d{2}/.test(startTime);
+  const allDay = !hasTime;
+  const startDate = hasTime
+    ? new Date(`${dateRaw}T${startTime.length === 5 ? `${startTime}:00` : startTime}`)
+    : new Date(`${dateRaw}T00:00:00`);
+  if (Number.isNaN(startDate.getTime())) return null;
+
+  let endDate;
+  if (allDay) {
+    endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+  } else {
+    endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+  }
+
+  const title = getEventTitle(event) || "GoMarcha Event";
+  const description = getEventDescription(event) || "";
+  const location = [getEventVenue(event), getEventAddress(event), event.city, event.country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  const uid = `${String(event.id || `${dateRaw}-${title}`)}@gomarcha.app`;
+  const generatedAt = new Date();
+  const stamp = formatEventCalendarDateStamp(generatedAt, false);
+  const startStamp = formatEventCalendarDateStamp(startDate, allDay);
+  const endStamp = formatEventCalendarDateStamp(endDate, allDay);
+
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//GoMarcha//Events//DE",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${escapeIcsText(uid)}`,
+    `DTSTAMP:${stamp}`,
+    allDay ? `DTSTART;VALUE=DATE:${startStamp}` : `DTSTART:${startStamp}`,
+    allDay ? `DTEND;VALUE=DATE:${endStamp}` : `DTEND:${endStamp}`,
+    `SUMMARY:${escapeIcsText(title)}`,
+    `DESCRIPTION:${escapeIcsText(description)}`,
+    `LOCATION:${escapeIcsText(location)}`,
+    "END:VEVENT",
+    "END:VCALENDAR"
+  ];
+
+  return {
+    fileName: `gomarcha-${String(event.id || "event")}.ics`,
+    content: `${lines.join("\r\n")}\r\n`
+  };
+}
+
+function addEventToCalendar(event) {
+  const calendarData = buildEventCalendarData(event);
+  if (!calendarData) {
+    setStatus(t("details_calendar_error"), "warning");
+    return;
+  }
+  const blob = new Blob([calendarData.content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = calendarData.fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+  setStatus(t("details_calendar_success"), "ok");
+}
+
 async function shareEventFromDetails(event) {
   const payload = buildEventSharePayload(event);
   if (!payload) return;
@@ -6175,6 +6295,28 @@ function renderEventDetails(event) {
       ${t("details_share")}
     </button>
   `;
+  const whatsappUrl = buildWhatsappShareUrl(event);
+  const whatsappButtonMarkup = `
+    <button
+      type="button"
+      class="button-secondary event-details__action"
+      data-action="details-share-whatsapp"
+      data-event-id="${event.id}"
+      ${whatsappUrl ? "" : "disabled"}
+    >
+      ${t("details_share_whatsapp")}
+    </button>
+  `;
+  const calendarButtonMarkup = `
+    <button
+      type="button"
+      class="button-secondary event-details__action"
+      data-action="details-calendar"
+      data-event-id="${event.id}"
+    >
+      ${t("details_calendar_add")}
+    </button>
+  `;
   const favoriteButtonMarkup = `
     <button
       type="button"
@@ -6255,6 +6397,8 @@ function renderEventDetails(event) {
           <div class="event-details__full-actions">
             ${routeButtonMarkup}
             ${shareButtonMarkup}
+            ${whatsappButtonMarkup}
+            ${calendarButtonMarkup}
             ${favoriteButtonMarkup}
           </div>
           ${descriptionMarkup}
@@ -6833,6 +6977,36 @@ function bindEvents() {
         }
         return;
       }
+      const shareWhatsappButton = target.closest("button[data-action='details-share-whatsapp']");
+      if (shareWhatsappButton) {
+        const eventId = shareWhatsappButton.dataset.eventId || state.selectedEventId;
+        const selectedEvent = findEventById(eventId) || state.activeEvent;
+        if (selectedEvent) {
+          const whatsappUrl = buildWhatsappShareUrl(selectedEvent);
+          if (whatsappUrl) {
+            const openedWindow = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+            if (!openedWindow) {
+              window.location.href = whatsappUrl;
+            }
+          } else {
+            setStatus(t("details_share_error"), "warning");
+          }
+        } else {
+          setStatus(t("details_share_error"), "warning");
+        }
+        return;
+      }
+      const addCalendarButton = target.closest("button[data-action='details-calendar']");
+      if (addCalendarButton) {
+        const eventId = addCalendarButton.dataset.eventId || state.selectedEventId;
+        const selectedEvent = findEventById(eventId) || state.activeEvent;
+        if (selectedEvent) {
+          addEventToCalendar(selectedEvent);
+        } else {
+          setStatus(t("details_calendar_error"), "warning");
+        }
+        return;
+      }
       const saveButton = target.closest("button[data-action='details-save']");
       if (saveButton) {
         const eventId = saveButton.dataset.eventId || state.selectedEventId;
@@ -6840,6 +7014,7 @@ function bindEvents() {
           const isFavorite = toggleFavoriteEvent(eventId);
           saveButton.classList.toggle("is-active", isFavorite);
           saveButton.setAttribute("aria-pressed", String(isFavorite));
+          setStatus(isFavorite ? t("details_favorite_added") : t("details_favorite_removed"), "ok");
         }
         return;
       }
