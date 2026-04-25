@@ -4,6 +4,8 @@ const APP_BUILD_VERSION = "2026.04.08-14";
 const ADMIN_REQUIRED_ROLE = "admin";
 const USE_MODERATION_EDGE_FUNCTION = false;
 const MODERATION_EDGE_FUNCTION_NAME = "moderate-event";
+const SMART_ACTION_FUNCTION_NAME = "smart-action";
+const SMART_ACTION_ENDPOINT = `${SUPABASE_URL}/functions/v1/${SMART_ACTION_FUNCTION_NAME}`;
 const ENABLE_AUTO_GEOCODING = true;
 const GEOCODING_PROVIDER = "nominatim";
 const GEOCODING_MIN_INTERVAL_MS = 850;
@@ -22,6 +24,28 @@ const INSTALL_BANNER_DISMISS_STORAGE_KEY = "vibeon.installBanner.dismissedUntil"
 const INSTALL_BANNER_INSTALLED_STORAGE_KEY = "vibeon.installBanner.installedUntil";
 const MOBILE_INSTALL_CTA_DISMISS_STORAGE_KEY = "vibeon.installCta.dismissedUntil";
 const USER_LOCATION_STORAGE_KEY = "vibeon.userLocation.v1";
+const TRANSLATION_TARGET_LANGUAGE_BY_CODE = Object.freeze({
+  de: "German",
+  en: "English",
+  es: "Spanish"
+});
+const AUTO_TRANSLATABLE_FIELD_GROUPS = Object.freeze([
+  {
+    key: "title",
+    languageFieldByCode: { de: "title_de", en: "title_en", es: "title_es" },
+    sourceCandidates: ["title", "name", "event_title"]
+  },
+  {
+    key: "description",
+    languageFieldByCode: { de: "description_de", en: "description_en", es: "description_es" },
+    sourceCandidates: ["description", "details", "event_description"]
+  },
+  {
+    key: "artist_bio",
+    languageFieldByCode: { de: "artist_bio_de", en: "artist_bio_en", es: "artist_bio_es" },
+    sourceCandidates: ["artist_bio", "artist_biography", "bio"]
+  }
+]);
 const INSTALL_BANNER_DISMISS_DAYS = 5;
 const INSTALL_BANNER_INSTALLED_DAYS = 180;
 const MOBILE_INSTALL_CTA_DISMISS_DAYS = 21;
@@ -2829,6 +2853,148 @@ function buildInsertPayload(payload) {
   };
 }
 
+function eventTranslationFieldGroups() {
+  return [
+    {
+      targets: ["title_de", "title_en", "title_es"],
+      languageToField: {
+        German: "title_de",
+        English: "title_en",
+        Spanish: "title_es"
+      },
+      sourceCandidates: {
+        German: ["title_de", "name_de", "event_title_de", "name"],
+        English: ["title_en", "name_en", "event_title_en", "title", "name"],
+        Spanish: ["title_es", "name_es", "event_title_es", "title", "name"]
+      }
+    },
+    {
+      targets: ["description_de", "description_en", "description_es"],
+      languageToField: {
+        German: "description_de",
+        English: "description_en",
+        Spanish: "description_es"
+      },
+      sourceCandidates: {
+        German: ["description_de", "details_de", "event_description_de", "description"],
+        English: ["description_en", "details_en", "event_description_en", "description"],
+        Spanish: ["description_es", "details_es", "event_description_es", "description"]
+      }
+    },
+    {
+      targets: ["artist_bio_de", "artist_bio_en", "artist_bio_es"],
+      languageToField: {
+        German: "artist_bio_de",
+        English: "artist_bio_en",
+        Spanish: "artist_bio_es"
+      },
+      sourceCandidates: {
+        German: ["artist_bio_de"],
+        English: ["artist_bio_en"],
+        Spanish: ["artist_bio_es"]
+      }
+    }
+  ];
+}
+
+function mapTargetLanguageToFieldSuffix(targetLanguage) {
+  if (targetLanguage === "English") return "_en";
+  if (targetLanguage === "Spanish") return "_es";
+  return "_de";
+}
+
+function readNonEmptyEventValue(payload, candidates = []) {
+  for (const key of candidates) {
+    const value = String(payload?.[key] || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+async function translateText(text, targetLang) {
+  const source = String(text || "").trim();
+  if (!source) return "";
+  const language = String(targetLang || "").trim();
+  if (!language) return source;
+
+  // TODO(security): Re-enable JWT verification on smart-action before production rollout.
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/smart-action`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({
+      text: source,
+      targetLang: language
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Translation failed with status ${response.status}`);
+  }
+
+  const data = await response.json();
+  const translated = String(data?.translated || "").trim();
+  if (!translated) {
+    throw new Error("Translation response missing translated text");
+  }
+  return translated;
+}
+
+async function generateMissingEventTranslations(eventPayload) {
+  const nextPayload = { ...eventPayload };
+  const translationGroups = eventTranslationFieldGroups();
+
+  for (const group of translationGroups) {
+    const targetFields = group.targets || [];
+    const hasMissingTargets = targetFields.some((fieldName) => !String(nextPayload[fieldName] || "").trim());
+    if (!hasMissingTargets) continue;
+
+    const sourceByLanguage = {
+      German: readNonEmptyEventValue(nextPayload, group.sourceCandidates?.German || []),
+      English: readNonEmptyEventValue(nextPayload, group.sourceCandidates?.English || []),
+      Spanish: readNonEmptyEventValue(nextPayload, group.sourceCandidates?.Spanish || [])
+    };
+
+    const languagePriority = ["Spanish", "German", "English"];
+    const sourceLanguage = languagePriority.find((language) => sourceByLanguage[language]) || null;
+    if (!sourceLanguage) continue;
+    const sourceText = sourceByLanguage[sourceLanguage];
+
+    const targets = ["German", "English", "Spanish"];
+    for (const targetLanguage of targets) {
+      const targetField = group.languageToField?.[targetLanguage];
+      if (!targetField) continue;
+      if (String(nextPayload[targetField] || "").trim()) continue;
+
+      const directSource = sourceByLanguage[targetLanguage];
+      if (directSource) {
+        nextPayload[targetField] = directSource;
+        continue;
+      }
+
+      if (targetLanguage === sourceLanguage) {
+        nextPayload[targetField] = sourceText;
+        continue;
+      }
+
+      const translated = await translateText(sourceText, targetLanguage);
+      nextPayload[targetField] = translated;
+
+      const suffix = mapTargetLanguageToFieldSuffix(targetLanguage);
+      const baseField = targetField.replace(/_(de|en|es)$/i, "");
+      const genericFieldName = baseField === "title" ? "name" : baseField;
+      if (!String(nextPayload[`${genericFieldName}${suffix}`] || "").trim()) {
+        nextPayload[`${genericFieldName}${suffix}`] = translated;
+      }
+    }
+  }
+
+  return nextPayload;
+}
+
 function sanitizeFileName(fileName) {
   const raw = String(fileName || "").trim();
   const normalized = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -3250,6 +3416,120 @@ async function insertEventWithSchemaFallback(client, payload) {
   }
 
   return lastResult || { data: null, error: { message: "Insert failed" } };
+}
+
+async function translateText(text, targetLang) {
+  const sourceText = String(text || "").trim();
+  const targetLanguage = String(targetLang || "").trim();
+  if (!sourceText || !targetLanguage) return "";
+  // TODO: Re-enable JWT verification for smart-action before production release.
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/smart-action`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({
+      text: sourceText,
+      targetLang: targetLanguage
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Translation HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  const translated = String(data?.translated || "").trim();
+  if (!translated) {
+    throw new Error("Translation response missing translated text.");
+  }
+  return translated;
+}
+
+function resolvePreferredTranslationSource(payload, candidatesByLanguage) {
+  for (const languageCode of TRANSLATION_SOURCE_LANGUAGE_ORDER) {
+    const fieldName = candidatesByLanguage[languageCode];
+    const candidate = String(payload?.[fieldName] || "").trim();
+    if (candidate) {
+      return {
+        sourceText: candidate,
+        sourceLanguageCode: languageCode
+      };
+    }
+  }
+  return {
+    sourceText: "",
+    sourceLanguageCode: ""
+  };
+}
+
+async function generateMissingEventTranslations(eventPayload) {
+  const payload = { ...(eventPayload || {}) };
+  const translationGroups = [
+    {
+      fields: {
+        de: "title_de",
+        en: "title_en",
+        es: "title_es"
+      },
+      aliases: ["title", "name", "event_title"]
+    },
+    {
+      fields: {
+        de: "description_de",
+        en: "description_en",
+        es: "description_es"
+      },
+      aliases: ["description", "details", "event_description"]
+    },
+    {
+      fields: {
+        de: "artist_bio_de",
+        en: "artist_bio_en",
+        es: "artist_bio_es"
+      },
+      aliases: ["artist_bio", "artist_description", "bio"]
+    }
+  ];
+
+  for (const group of translationGroups) {
+    for (const [languageCode, fieldName] of Object.entries(group.fields)) {
+      const current = String(payload[fieldName] || "").trim();
+      if (current) {
+        payload[fieldName] = current;
+        continue;
+      }
+      const aliasValue = group.aliases
+        .map((alias) => String(payload[alias] || "").trim())
+        .find(Boolean);
+      if (aliasValue) {
+        payload[fieldName] = aliasValue;
+      }
+    }
+
+    const { sourceText, sourceLanguageCode } = resolvePreferredTranslationSource(payload, group.fields);
+    if (!sourceText || !sourceLanguageCode) continue;
+
+    for (const [targetLanguageCode, fieldName] of Object.entries(group.fields)) {
+      const existingValue = String(payload[fieldName] || "").trim();
+      if (existingValue) {
+        payload[fieldName] = existingValue;
+        continue;
+      }
+      if (targetLanguageCode === sourceLanguageCode) {
+        payload[fieldName] = sourceText;
+        continue;
+      }
+      const targetLanguage = TRANSLATION_LANGUAGE_NAME_BY_CODE[targetLanguageCode];
+      if (!targetLanguage) continue;
+      const translated = await translateText(sourceText, targetLanguage);
+      if (translated) {
+        payload[fieldName] = translated;
+      }
+    }
+  }
+
+  return payload;
 }
 
 function splitGenres(value) {
@@ -6550,6 +6830,31 @@ async function reloadEventsAndRender() {
   renderModerationPanel();
 }
 
+async function applyMissingTranslationsBeforeSave(client, payload, feedbackTarget = "form") {
+  let workingPayload = payload;
+  let translationWarning = false;
+  if (feedbackTarget === "form") {
+    setFormFeedback(t("form_translation_loading"), "info");
+  } else {
+    setModerationFeedback(t("form_translation_loading"), "info");
+  }
+  try {
+    workingPayload = await generateMissingEventTranslations(payload, client);
+  } catch (translationError) {
+    console.warn("[Marcha Debug] Auto-translation failed. Saving original payload.", translationError);
+    translationWarning = true;
+    if (feedbackTarget === "form") {
+      setFormFeedback(t("form_translation_warning"), "info");
+    } else {
+      setModerationFeedback(t("form_translation_warning"), "info");
+    }
+  }
+  return {
+    payload: workingPayload,
+    warning: translationWarning
+  };
+}
+
 async function handleCreateEventSubmit(submitEvent) {
   submitEvent.preventDefault();
   setFormFeedback("");
@@ -6596,7 +6901,8 @@ async function handleCreateEventSubmit(submitEvent) {
       }
     }
     const insertPayload = buildInsertPayload(payloadWithCoordinates);
-    const { data, error } = await insertEventWithSchemaFallback(client, insertPayload);
+    const translationResult = await applyMissingTranslationsBeforeSave(client, insertPayload, "form");
+    const { data, error } = await insertEventWithSchemaFallback(client, translationResult.payload);
 
     console.log("[Marcha Debug] Event insert data:", data);
     console.log("[Marcha Debug] Event insert error:", error);
@@ -6615,7 +6921,12 @@ async function handleCreateEventSubmit(submitEvent) {
 
     clearEventForm();
     persistSubmitterProfile(payload);
-    setFormFeedback(t("form_success"), "success");
+    setFormFeedback(
+      translationResult.warning
+        ? `${t("form_success")} ${t("form_translation_warning")}`
+        : t("form_success"),
+      translationResult.warning ? "info" : "success"
+    );
     await reloadEventsAndRender();
     window.setTimeout(closeSubmitModal, 1800);
   } catch (error) {
