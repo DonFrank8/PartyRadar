@@ -3513,6 +3513,7 @@ function resolveTranslationGroupSource(payload, group) {
 async function generateMissingEventTranslations(eventPayload) {
   const payload = ensureActiveLanguageSeed({ ...(eventPayload || {}) });
   const targetLanguageCodes = ["de", "en", "es"];
+  const failedTargets = [];
 
   for (const group of AUTO_TRANSLATABLE_FIELD_GROUPS) {
     for (const languageCode of targetLanguageCodes) {
@@ -3533,10 +3534,25 @@ async function generateMissingEventTranslations(eventPayload) {
         payload[fieldName] = sourceText;
         continue;
       }
+
       const targetLanguage = TRANSLATION_TARGET_LANGUAGE_BY_CODE[languageCode];
       if (!targetLanguage) continue;
-      const translated = await translateText(sourceText, targetLanguage);
-      if (translated) payload[fieldName] = translated;
+
+      try {
+        const translated = await translateText(sourceText, targetLanguage);
+        if (translated) {
+          payload[fieldName] = translated;
+        } else {
+          failedTargets.push(fieldName);
+          payload[fieldName] = sourceText;
+        }
+      } catch (error) {
+        failedTargets.push(fieldName);
+        payload[fieldName] = sourceText;
+        console.warn(
+          `[Marcha Debug] Translation failed for ${fieldName} (${targetLanguage}): ${error?.message || error}`
+        );
+      }
     }
 
     const baseFieldName = group.key;
@@ -3545,7 +3561,11 @@ async function generateMissingEventTranslations(eventPayload) {
     }
   }
 
-  return payload;
+  return {
+    payload,
+    warning: failedTargets.length > 0,
+    failedTargets
+  };
 }
 
 function splitGenres(value) {
@@ -6825,9 +6845,23 @@ async function applyMissingTranslationsBeforeSave(client, payload, feedbackTarge
     setModerationFeedback(t("form_translation_loading"), "info");
   }
   try {
-    workingPayload = await generateMissingEventTranslations(payload);
+    const translationResult = await generateMissingEventTranslations(payload);
+    workingPayload = translationResult.payload;
+    if (translationResult.warning) {
+      translationWarning = true;
+      console.warn(
+        `[Marcha Debug] Auto-translation partial fallback used for fields: ${translationResult.failedTargets.join(", ")}`
+      );
+      if (feedbackTarget === "form") {
+        setFormFeedback(t("form_translation_warning"), "info");
+      } else {
+        setModerationFeedback(t("form_translation_warning"), "info");
+      }
+    }
   } catch (translationError) {
-    console.warn("[Marcha Debug] Auto-translation failed. Saving original payload.", translationError);
+    console.warn(
+      `[Marcha Debug] Auto-translation failed. Saving original payload. ${translationError?.message || translationError}`
+    );
     translationWarning = true;
     if (feedbackTarget === "form") {
       setFormFeedback(t("form_translation_warning"), "info");
