@@ -36,11 +36,6 @@ const TRANSLATION_TARGET_ALIASES_BY_CODE = Object.freeze({
 });
 const AUTO_TRANSLATABLE_FIELD_GROUPS = Object.freeze([
   {
-    key: "title",
-    languageFieldByCode: { de: "title_de", en: "title_en", es: "title_es" },
-    sourceCandidates: ["title", "name", "event_title"]
-  },
-  {
     key: "description",
     languageFieldByCode: { de: "description_de", en: "description_en", es: "description_es" },
     sourceCandidates: ["description", "descrption", "details", "event_description"]
@@ -3572,6 +3567,30 @@ function normalizeTranslationOutput(translatedText, sourceText = "") {
   return raw;
 }
 
+function tokenizeLanguageQuality(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^a-zA-ZÀ-ÿ0-9\s]/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function hasLanguageQuality(translatedText, languageCode) {
+  const tokens = tokenizeLanguageQuality(translatedText);
+  if (!tokens.length) return false;
+  const uniqueTokens = new Set(tokens);
+  const markersByLanguage = {
+    en: ["the", "and", "for", "with", "event", "description", "this", "is", "are", "to"],
+    es: ["el", "la", "los", "las", "y", "para", "con", "evento", "descripcion", "es", "de"],
+    de: ["der", "die", "das", "und", "mit", "fur", "fuer", "veranstaltung", "beschreibung", "ist", "zu"]
+  };
+  const markers = markersByLanguage[languageCode] || [];
+  if (!markers.length) return true;
+  const hitCount = markers.reduce((count, marker) => count + (uniqueTokens.has(marker) ? 1 : 0), 0);
+  return hitCount >= 1;
+}
+
 async function translateTextByLanguageCode(text, languageCode) {
   const aliases = TRANSLATION_TARGET_ALIASES_BY_CODE[languageCode] || [];
   const fallbackTarget = TRANSLATION_TARGET_LANGUAGE_BY_CODE[languageCode];
@@ -3581,7 +3600,9 @@ async function translateTextByLanguageCode(text, languageCode) {
     try {
       const translated = await translateText(text, target);
       const normalized = normalizeTranslationOutput(translated, text);
-      if (normalized) return normalized;
+      if (!normalized) continue;
+      if (!hasLanguageQuality(normalized, languageCode)) continue;
+      return normalized;
     } catch (error) {
       lastError = error;
     }
