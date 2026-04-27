@@ -3536,6 +3536,22 @@ async function translateText(text, targetLang) {
   return translated;
 }
 
+async function translateTextByLanguageCode(text, languageCode) {
+  const aliases = TRANSLATION_TARGET_ALIASES_BY_CODE[languageCode] || [];
+  const fallbackTarget = TRANSLATION_TARGET_LANGUAGE_BY_CODE[languageCode];
+  const targets = [...new Set([...aliases, fallbackTarget].filter(Boolean))];
+  let lastError = null;
+  for (const target of targets) {
+    try {
+      const translated = await translateText(text, target);
+      if (translated) return translated;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error(`No translation target resolved for ${languageCode}`);
+}
+
 function readFirstNonEmptyValue(payload, fieldNames = []) {
   for (const fieldName of fieldNames) {
     const value = String(payload?.[fieldName] || "").trim();
@@ -3572,6 +3588,26 @@ function resolveTranslationGroupSource(payload, group) {
   };
 }
 
+function fillMissingLocalizedFieldsWithSource(payload) {
+  const workingPayload = ensureActiveLanguageSeed(normalizeDescriptionColumnVariants({ ...(payload || {}) }));
+  const targetLanguageCodes = ["de", "en", "es"];
+  for (const group of AUTO_TRANSLATABLE_FIELD_GROUPS) {
+    const { sourceText } = resolveTranslationGroupSource(workingPayload, group);
+    if (!sourceText) continue;
+    for (const languageCode of targetLanguageCodes) {
+      const fieldName = group.languageFieldByCode?.[languageCode];
+      if (!fieldName) continue;
+      if (!String(workingPayload[fieldName] || "").trim()) {
+        workingPayload[fieldName] = sourceText;
+      }
+    }
+    if (!String(workingPayload[group.key] || "").trim()) {
+      workingPayload[group.key] = sourceText;
+    }
+  }
+  return normalizeDescriptionColumnVariants(workingPayload);
+}
+
 async function generateMissingEventTranslations(eventPayload) {
   const payload = ensureActiveLanguageSeed(normalizeDescriptionColumnVariants({ ...(eventPayload || {}) }));
   const targetLanguageCodes = ["de", "en", "es"];
@@ -3601,7 +3637,7 @@ async function generateMissingEventTranslations(eventPayload) {
       if (!targetLanguage) continue;
 
       try {
-        const translated = await translateText(sourceText, targetLanguage);
+        const translated = await translateTextByLanguageCode(sourceText, languageCode);
         if (translated) {
           payload[fieldName] = translated;
         } else {
@@ -3624,7 +3660,7 @@ async function generateMissingEventTranslations(eventPayload) {
   }
 
   return {
-    payload,
+    payload: normalizeDescriptionColumnVariants(payload),
     warning: failedTargets.length > 0,
     failedTargets
   };
@@ -6924,6 +6960,8 @@ async function applyMissingTranslationsBeforeSave(client, payload, feedbackTarge
     console.warn(
       `[Marcha Debug] Auto-translation failed. Saving original payload. ${translationError?.message || translationError}`
     );
+    // Absolute fallback: keep multilingual columns non-empty even when translation service is unavailable.
+    workingPayload = fillMissingLocalizedFieldsWithSource(payload);
     translationWarning = true;
     if (feedbackTarget === "form") {
       setFormFeedback(t("form_translation_warning"), "info");
