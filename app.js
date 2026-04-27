@@ -43,7 +43,7 @@ const AUTO_TRANSLATABLE_FIELD_GROUPS = Object.freeze([
   {
     key: "description",
     languageFieldByCode: { de: "description_de", en: "description_en", es: "description_es" },
-    sourceCandidates: ["description", "details", "event_description"]
+    sourceCandidates: ["description", "descrption", "details", "event_description"]
   },
   {
     key: "artist_bio",
@@ -1392,7 +1392,62 @@ function getEventTitle(event, lang = state.lang) {
 }
 
 function getEventDescription(event, lang = state.lang) {
-  return getLocalizedValue(event, "description", lang, ["details", "event_description"]) || t("details_no_description");
+  return getLocalizedValue(event, "description", lang, ["descrption", "details", "event_description"])
+    || t("details_no_description");
+}
+
+function normalizeDescriptionColumnVariants(payload) {
+  const nextPayload = { ...(payload || {}) };
+  const languageCodes = ["de", "en", "es"];
+  for (const code of languageCodes) {
+    const canonicalField = `description_${code}`;
+    const legacyTypoField = `descrption_${code}`;
+    const canonicalValue = String(nextPayload[canonicalField] || "").trim();
+    const legacyValue = String(nextPayload[legacyTypoField] || "").trim();
+    const merged = canonicalValue || legacyValue;
+    if (!merged) continue;
+    nextPayload[canonicalField] = merged;
+    nextPayload[legacyTypoField] = merged;
+  }
+  return nextPayload;
+}
+
+function ensureActiveLanguageSeed(payload) {
+  const nextPayload = normalizeDescriptionColumnVariants({ ...(payload || {}) });
+  const activeLanguageCode = resolveLocalizedFieldLanguage(state.lang);
+
+  const seedFieldGroup = (baseKeys, languageFieldByCode, legacyFieldByCode = null) => {
+    if (!languageFieldByCode || !languageFieldByCode[activeLanguageCode]) return;
+    const activeField = languageFieldByCode[activeLanguageCode];
+    const activeLegacyField = legacyFieldByCode?.[activeLanguageCode] || "";
+    const existing = String(nextPayload[activeField] || nextPayload[activeLegacyField] || "").trim();
+    if (existing) {
+      if (activeField && !String(nextPayload[activeField] || "").trim()) {
+        nextPayload[activeField] = existing;
+      }
+      if (activeLegacyField && !String(nextPayload[activeLegacyField] || "").trim()) {
+        nextPayload[activeLegacyField] = existing;
+      }
+      return;
+    }
+    for (const baseKey of baseKeys) {
+      const baseValue = String(nextPayload[baseKey] || "").trim();
+      if (!baseValue) continue;
+      nextPayload[activeField] = baseValue;
+      if (activeLegacyField) nextPayload[activeLegacyField] = baseValue;
+      return;
+    }
+  };
+
+  seedFieldGroup(["title", "name"], { de: "title_de", en: "title_en", es: "title_es" });
+  seedFieldGroup(
+    ["description", "descrption"],
+    { de: "description_de", en: "description_en", es: "description_es" },
+    { de: "descrption_de", en: "descrption_en", es: "descrption_es" }
+  );
+  seedFieldGroup(["artist_bio"], { de: "artist_bio_de", en: "artist_bio_en", es: "artist_bio_es" });
+
+  return normalizeDescriptionColumnVariants(nextPayload);
 }
 
 function getEventVenue(event, lang = state.lang) {
@@ -2932,40 +2987,44 @@ function persistSubmitterProfile(payload) {
 
 function buildInsertPayload(payload) {
   // Address is collected now; geocoding can later resolve this into coordinates.
+  const normalizedPayload = normalizeDescriptionColumnVariants(payload);
   const geocoding_query = payload.formatted_address || buildGeocodingQuery(payload);
-  const recurrenceType = normalizeRecurrenceType(payload.recurrence_type);
+  const recurrenceType = normalizeRecurrenceType(normalizedPayload.recurrence_type);
   const isRecurring = recurrenceType !== RECURRENCE_TYPE_NONE;
   const currentYear = new Date().getFullYear();
   const recurrenceStartDate = isRecurring
-    ? normalizeDateWithFallbackYear(String(payload.recurrence_start_date || "").trim(), currentYear) || null
+    ? normalizeDateWithFallbackYear(String(normalizedPayload.recurrence_start_date || "").trim(), currentYear) || null
     : null;
   const recurrenceEndDate = isRecurring
-    ? normalizeDateWithFallbackYear(String(payload.recurrence_end_date || "").trim(), currentYear) || null
+    ? normalizeDateWithFallbackYear(String(normalizedPayload.recurrence_end_date || "").trim(), currentYear) || null
     : null;
-  const recurrenceWeekday = recurrenceType === RECURRENCE_TYPE_WEEKLY ? normalizeWeekday(payload.recurrence_weekday) : null;
+  const recurrenceWeekday =
+    recurrenceType === RECURRENCE_TYPE_WEEKLY ? normalizeWeekday(normalizedPayload.recurrence_weekday) : null;
   const recurrenceDayOfMonth =
-    recurrenceType === RECURRENCE_TYPE_MONTHLY ? normalizeDayOfMonth(payload.recurrence_day_of_month) : null;
+    recurrenceType === RECURRENCE_TYPE_MONTHLY ? normalizeDayOfMonth(normalizedPayload.recurrence_day_of_month) : null;
   const eventDate = isRecurring
     ? recurrenceStartDate
-    : normalizeDateWithFallbackYear(String(payload.event_date || "").trim(), currentYear);
+    : normalizeDateWithFallbackYear(String(normalizedPayload.event_date || "").trim(), currentYear);
   const activeLanguageCode = resolveLocalizedFieldLanguage(state.lang);
-  const titleBase = String(payload.title || payload.name || "").trim();
-  const descriptionBase = String(payload.description || "").trim();
-  const artistBioBase = String(payload.artist_bio || payload.artist_biography || payload.bio || "").trim();
+  const titleBase = String(normalizedPayload.title || normalizedPayload.name || "").trim();
+  const descriptionBase = String(normalizedPayload.description || "").trim();
+  const artistBioBase = String(
+    normalizedPayload.artist_bio || normalizedPayload.artist_biography || normalizedPayload.bio || ""
+  ).trim();
   const titleByCode = {
-    de: String(payload.title_de || "").trim(),
-    en: String(payload.title_en || "").trim(),
-    es: String(payload.title_es || "").trim()
+    de: String(normalizedPayload.title_de || "").trim(),
+    en: String(normalizedPayload.title_en || "").trim(),
+    es: String(normalizedPayload.title_es || "").trim()
   };
   const descriptionByCode = {
-    de: String(payload.description_de || "").trim(),
-    en: String(payload.description_en || "").trim(),
-    es: String(payload.description_es || "").trim()
+    de: String(normalizedPayload.description_de || "").trim(),
+    en: String(normalizedPayload.description_en || "").trim(),
+    es: String(normalizedPayload.description_es || "").trim()
   };
   const artistBioByCode = {
-    de: String(payload.artist_bio_de || "").trim(),
-    en: String(payload.artist_bio_en || "").trim(),
-    es: String(payload.artist_bio_es || "").trim()
+    de: String(normalizedPayload.artist_bio_de || "").trim(),
+    en: String(normalizedPayload.artist_bio_en || "").trim(),
+    es: String(normalizedPayload.artist_bio_es || "").trim()
   };
   if (!titleByCode[activeLanguageCode] && titleBase) {
     titleByCode[activeLanguageCode] = titleBase;
@@ -2978,27 +3037,27 @@ function buildInsertPayload(payload) {
   }
 
   return {
-    name: payload.name,
+    name: normalizedPayload.name,
     title: titleBase || null,
-    location_name: payload.location_name,
-    street: payload.street || payload.address || null,
-    address: payload.address || null,
-    postal_code: payload.postal_code || null,
-    city: payload.city,
-    province: payload.province || null,
-    region: payload.region || null,
-    country: payload.country || null,
+    location_name: normalizedPayload.location_name,
+    street: normalizedPayload.street || normalizedPayload.address || null,
+    address: normalizedPayload.address || null,
+    postal_code: normalizedPayload.postal_code || null,
+    city: normalizedPayload.city,
+    province: normalizedPayload.province || null,
+    region: normalizedPayload.region || null,
+    country: normalizedPayload.country || null,
     event_date: eventDate,
-    event_time: payload.event_time || null,
+    event_time: normalizedPayload.event_time || null,
     recurrence_type: recurrenceType,
     recurrence_start_date: recurrenceStartDate,
     recurrence_end_date: recurrenceEndDate,
     recurrence_weekday: recurrenceWeekday,
     recurrence_day_of_month: recurrenceDayOfMonth,
-    genre: payload.genre,
-    artist_name: payload.artist_name,
-    additional_artists: payload.additional_artists || null,
-    price_text: payload.price_text || null,
+    genre: normalizedPayload.genre,
+    artist_name: normalizedPayload.artist_name,
+    additional_artists: normalizedPayload.additional_artists || null,
+    price_text: normalizedPayload.price_text || null,
     description: descriptionBase || null,
     artist_bio: artistBioBase || null,
     title_de: titleByCode.de || null,
@@ -3007,19 +3066,22 @@ function buildInsertPayload(payload) {
     description_de: descriptionByCode.de || null,
     description_en: descriptionByCode.en || null,
     description_es: descriptionByCode.es || null,
+    descrption_de: descriptionByCode.de || null,
+    descrption_en: descriptionByCode.en || null,
+    descrption_es: descriptionByCode.es || null,
     artist_bio_de: artistBioByCode.de || null,
     artist_bio_en: artistBioByCode.en || null,
     artist_bio_es: artistBioByCode.es || null,
-    image_url: payload.image_url || null,
-    contact_email: payload.contact_email,
-    submitted_by: payload.submitted_by,
+    image_url: normalizedPayload.image_url || null,
+    contact_email: normalizedPayload.contact_email,
+    submitted_by: normalizedPayload.submitted_by,
     status: "pending",
     verification_notes: null,
     geocoding_query: geocoding_query || null,
-    lat: payload.lat || null,
-    lng: payload.lng || null,
-    place_id: payload.place_id || null,
-    formatted_address: payload.formatted_address || null
+    lat: normalizedPayload.lat || null,
+    lng: normalizedPayload.lng || null,
+    place_id: normalizedPayload.place_id || null,
+    formatted_address: normalizedPayload.formatted_address || null
   };
 }
 
@@ -3511,7 +3573,7 @@ function resolveTranslationGroupSource(payload, group) {
 }
 
 async function generateMissingEventTranslations(eventPayload) {
-  const payload = ensureActiveLanguageSeed({ ...(eventPayload || {}) });
+  const payload = ensureActiveLanguageSeed(normalizeDescriptionColumnVariants({ ...(eventPayload || {}) }));
   const targetLanguageCodes = ["de", "en", "es"];
   const failedTargets = [];
 
